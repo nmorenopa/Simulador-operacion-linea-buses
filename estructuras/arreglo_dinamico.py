@@ -1,5 +1,3 @@
-import random
-
 class Arreglo_dinamico: 
 
     def __init__(self):
