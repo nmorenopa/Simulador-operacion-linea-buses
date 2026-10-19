@@ -76,9 +76,4 @@ class Arreglo_dinamico:
             maximo = max(moda.values())
             return [k for k, v in moda.items() if v == maximo]
 
-    def main(arreglo):
-        arreglo = Arreglo_dinamico()
-        d = int(input("Ingrese los elementos del arreglo: "))
-        for i in range(0,d):
-            numero[i] = random.randint(1,1000000)
-        print (numero)
+
