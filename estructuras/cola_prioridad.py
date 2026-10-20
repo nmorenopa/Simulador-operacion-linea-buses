@@ -1,8 +1,8 @@
-from estructuras.cola_circular import NodoCola
+from estructuras.nodo import Nodo   # Nodo central, compartido por todas las estructuras
 
 
-class NodoColaPrioridad(NodoCola):
-    """Nodo de la cola con prioridad: un NodoCola con un campo extra."""
+class NodoColaPrioridad(Nodo):
+    """Nodo de la cola con prioridad: un Nodo con un campo extra (la prioridad)."""
 
     def __init__(self, dato, prioridad):
         super().__init__(dato)        # El padre inicializa dato y siguiente
@@ -58,6 +58,8 @@ class ColaPrioridad:
             actual.siguiente = nuevo             # Y el anterior apunta al nuevo
 
         self._tamano += 1
+        # NOTA (revisión): la prioridad se valida en pasajero.py (PRIORIDAD_ALTA=0,
+        # PRIORIDAD_NORMAL=1); aquí el TDA acepta cualquier entero comparable.
 
     def desencolar(self):
         """Saca y devuelve el dato de mayor prioridad, o None si está vacía. O(1)."""

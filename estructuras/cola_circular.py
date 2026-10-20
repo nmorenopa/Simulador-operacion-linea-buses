@@ -1,9 +1,4 @@
-class NodoCola:
-    """Nodo de una lista enlazada simple: guarda un dato y apunta al siguiente."""
-
-    def __init__(self, dato):
-        self.dato = dato
-        self.siguiente = None
+from estructuras.nodo import Nodo   # Nodo central, compartido por todas las estructuras
 
 
 class ColaCircular:
@@ -36,7 +31,7 @@ class ColaCircular:
 
     def encolar(self, dato):
         """Agrega un dato al final de la cola. O(1)."""
-        nuevo_nodo = NodoCola(dato)
+        nuevo_nodo = Nodo(dato)
 
         if self.esta_vacia():
             # Único nodo: es cabeza y último a la vez
@@ -72,3 +67,7 @@ class ColaCircular:
 
         self._tamano -= 1
         return dato_retorno
+
+    # NOTA (revisión): falta siguiente() (la rotación: devolver la parada actual
+    # y pasar a la siguiente sin sacarla), que es lo que usa el simulador para
+    # recorrer la ruta en ciclo.

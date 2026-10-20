@@ -9,6 +9,8 @@ class Arreglo_dinamico:
     def vacio(self):
         return len(self.arreglo) == 0
     
+    # NOTA (revisión): no valida k. Un índice negativo (-1) devuelve el último
+    # elemento en vez de dar error, y uno muy grande lanza un IndexError de Python.
     def posicion (self, k):
         return self.arreglo[k]
     
@@ -18,6 +20,8 @@ class Arreglo_dinamico:
                 return True
         return False
     
+    # NOTA (revisión): imprime en vez de devolver. Si el valor no está, no dice nada.
+    # Mejor devolver la posición del primer valor encontrado, o -1 si no existe.
     def buscar(self,valor):
         for i in range(len(self.arreglo)):
             if self.arreglo[i] == valor:
@@ -34,6 +38,9 @@ class Arreglo_dinamico:
         return k
 
 
+    # BUG (revisión): la condición está invertida. Con un índice VÁLIDO (0 <= k < len)
+    # lanza IndexError, y con uno inválido intenta asignar. Debería ser:
+    #     if not (0 <= k < len(self.arreglo)): raise IndexError(...)
     def cambiarposicion(self,k,valor):
         if 0 <= k < len(self.arreglo):
             raise IndexError("Índice fuera de rango")
@@ -43,24 +50,33 @@ class Arreglo_dinamico:
     def agregaralfinal(self,valor):
         self.arreglo.append(valor)
 
+    # BUG (revisión): misma condición invertida. Además, insertar debe permitir
+    # k == len (insertar al final), así que lo válido es 0 <= k <= len.
     def insertar(self,k,valor):
         if (0 <= k < len(self.arreglo)):
             raise IndexError("Índice fuera de rango")
         else:
             self.arreglo.insert(k,valor)
 
+    # NOTA (revisión): no devuelve el elemento borrado. Para usarlo como flota o
+    # historial conviene devolverlo.
     def borraralfinal(self):
         if self.vacio():
             raise IndexError("El arreglo esta vacio")
         else:
             self.arreglo.pop()
 
+    # BUG (revisión): misma condición invertida que en cambiarposicion.
     def borrarposicion(self,k):
         if 0 <= k < len(self.arreglo):
             raise IndexError("Índice fuera de rango")
         else:
             self.arreglo.pop(k)
 
+    # BUG (revisión): "max = 0" tapa la función max() de Python, y luego max(moda.values())
+    # falla con TypeError: 'int' object is not callable. Borrar "max = 0" y la variable
+    # "contador" (no se usa). Además, puede devolver varios valores si hay empate;
+    # documentarlo en el docstring.
     def moda(self):
         contador = 0
         max = 0
@@ -68,11 +84,10 @@ class Arreglo_dinamico:
             raise ValueError("El arreglo esta vacio")
         else:
             moda = {}
-            for a in range(len(self.arreglo)):
-                for b in range(len(self.arreglo)):
-                    if self.arreglo[a] == self.arreglo[b]:
-                        contador += 1
-                if contador > max:
-                    max = contador
-                    moda = self.arreglo[a]
-        return moda
+            for i in range(len(self.arreglo)):
+                if self.arreglo[i] in moda:
+                    moda[self.arreglo[i]] += 1
+                else:
+                    moda[self.arreglo[i]] = 1
+            maximo = max(moda.values())
+            return [k for k, v in moda.items() if v == maximo]
