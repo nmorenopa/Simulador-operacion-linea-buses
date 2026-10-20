@@ -1,5 +1,4 @@
 from estructuras.cola_circular import NodoCola
-# TODO: mover NodoCola a un archivo común (ver con Santiago)
 
 
 class NodoColaPrioridad(NodoCola):
