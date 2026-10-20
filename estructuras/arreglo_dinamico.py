@@ -68,16 +68,6 @@ class Arreglo_dinamico:
             raise ValueError("El arreglo esta vacio")
         else:
             moda = {}
-<<<<<<< HEAD
-            for a in range(len(self.arreglo)):
-                for b in range(len(self.arreglo)):
-                    if self.arreglo[a] == self.arreglo[b]:
-                        contador += 1
-                if contador > max:
-                    max = contador
-                    moda = self.arreglo[a]
-        return moda
-=======
             for i in range(len(self.arreglo)):
                 if self.arreglo[i] in moda:
                     moda[self.arreglo[i]] += 1
@@ -85,6 +75,3 @@ class Arreglo_dinamico:
                     moda[self.arreglo[i]] = 1
             maximo = max(moda.values())
             return [k for k, v in moda.items() if v == maximo]
-
-
->>>>>>> 93c6c16c2e4c4fa297be246d1e50a59e971b4687
