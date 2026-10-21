@@ -6,14 +6,14 @@ class NodoColaPrioridad(Nodo):
 
     def __init__(self, dato, prioridad):
         super().__init__(dato)        # El padre inicializa dato y siguiente
-        self.prioridad = prioridad    # Entero: menor número = mayor prioridad
+        self.prioridad = prioridad    # Entero: mayor número = mayor prioridad
 
 
 class ColaPrioridad:
     """
     Cola con prioridad implementada con una lista enlazada ordenada.
 
-    Convención: MENOR número = MAYOR prioridad (0 pasa antes que 1).
+    Convención: MAYOR número = MAYOR prioridad (1 pasa antes que 0).
     La lista siempre está ordenada, así que el de mayor prioridad es la
     cabeza. Entre elementos con la misma prioridad se respeta el orden de
     llegada (FIFO).
@@ -45,14 +45,16 @@ class ColaPrioridad:
         """
         nuevo = NodoColaPrioridad(dato, prioridad)
 
-        # Caso 1: lista vacía, o el nuevo es ESTRICTAMENTE mejor que la cabeza
-        if self.esta_vacia() or prioridad < self.cabeza.prioridad:
+        # Caso 1: lista vacía, o el nuevo tiene ESTRICTAMENTE más prioridad que la cabeza
+        if self.esta_vacia() or prioridad > self.cabeza.prioridad:
             nuevo.siguiente = self.cabeza
             self.cabeza = nuevo
         else:
             # Caso 2: va en medio o al final. Se avanza mientras el siguiente
+            # tenga prioridad MAYOR O IGUAL (con ">=" el nuevo queda detrás de
+            # sus iguales y se conserva el orden de llegada)
             actual = self.cabeza
-            while actual.siguiente is not None and actual.siguiente.prioridad <= prioridad:
+            while actual.siguiente is not None and actual.siguiente.prioridad >= prioridad:
                 actual = actual.siguiente
             nuevo.siguiente = actual.siguiente   # El nuevo apunta a lo que seguía
             actual.siguiente = nuevo             # Y el anterior apunta al nuevo
