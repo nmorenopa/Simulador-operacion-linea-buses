@@ -1,65 +1,92 @@
 class Arreglo_dinamico: 
+    capacidadinicial = 1
 
-    def __init__(self):
-        self.arreglo = []
+    def __init__(self,):
+        self.capacidad = self.capacidadinicial
+        self.datos = [None] * self.capacidad
+        self.n = 0
 
     def longitud (self):
-        return len(self.arreglo)
+        return self.n
     
     def vacio(self):
-        return len(self.arreglo) == 0
+        return self.n == 0
     
     def posicion (self, k):
-        return self.arreglo[k]
+        if k < 0 or k >self.n:
+            raise IndexError("Índice fuera de rango")
+        else:
+        return self.datos[k]
     
     def contiene(self,valor):
-        for i in range(len(self.arreglo)):
-            if self.arreglo[i] == valor:
+        for i in range(self.n)):
+            if self.n[i] == valor:
                 return True
         return False
     
     def buscar(self,valor):
-        for i in range(len(self.arreglo)):
-            if self.arreglo[i] == valor:
+        for i in range(self.n):
+            if self.datos[i] == valor:
                 print("El valor esta en la posicion: ", i)
 
     def mostrar (self):
-        return self.arreglo
+        mostrar =[]
+        for i in range(self.n):
+            mostrar.append(self.datos[i])
+        return mostrar
     
     def contar(self,valor):
         k = 0
-        for i in range(len(self.arreglo)):
-            if self.arreglo[i] == valor:
+        for i in range(self.n):
+            if self.datos[i] == valor:
                 k += 1
         return k
 
+    def agrandar(self, nuevacapacidad):
+        arreglonuevo = [None] * nuevacapacidad
+        for i in range(self.n):
+            arreglonuevo[i] = self.datos[i]
+        self.datos = arreglonuevo
+        self.capacidad - nuevacapacidad
 
     def cambiarposicion(self,k,valor):
-        if 0 <= k < len(self.arreglo):
+        if k < 0 or k >self.n:
             raise IndexError("Índice fuera de rango")
         else:
-            self.arreglo[k] = valor
+            self.datos[k] = valor
 
     def agregaralfinal(self,valor):
-        self.arreglo.append(valor)
+        if self.n == self.capacidad:
+            self.agrandar(self.capacidad * 2)
+        self.datos[self.n] = valor
+        self.n += 1
 
     def insertar(self,k,valor):
-        if (0 <= k < len(self.arreglo)):
+        if k < 0 or k >self.n:
             raise IndexError("Índice fuera de rango")
-        else:
-            self.arreglo.insert(k,valor)
+        if self.n == self.capacidad:
+            self.agrandar(self.capacidad * 2)
+        self.datos[k]= valor
+        self.n +=1
+            
 
     def borraralfinal(self):
         if self.vacio():
             raise IndexError("El arreglo esta vacio")
-        else:
-            self.arreglo.pop()
+        borrar = self.datos[self.n - 1]
+        self.datos[self.n - 1] = None
+        self.n -=1
+        return borrar
 
     def borrarposicion(self,k):
-        if 0 <= k < len(self.arreglo):
-            raise IndexError("Índice fuera de rango")
-        else:
-            self.arreglo.pop(k)
+        if self.vacio():
+            raise IndexError("El arreglo esta vacio")
+        borrarpos = self.datos[k]
+        for i in range(k, self.n - 1):
+            self.datos[i] = self.datos[i+1]
+        self.datos[self.n - 1] = None
+        self.n -=1
+        return borrarpos
 
     def moda(self):
         contador = 0
@@ -68,8 +95,8 @@ class Arreglo_dinamico:
             raise ValueError("El arreglo esta vacio")
         else:
             moda = {}
-            for a in range(len(self.arreglo)):
-                for b in range(len(self.arreglo)):
+            for a in range(self.n):
+                for b in range(self.n):
                     if self.arreglo[a] == self.arreglo[b]:
                         contador += 1
                 if contador > max:
