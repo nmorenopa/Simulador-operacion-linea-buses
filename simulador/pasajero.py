@@ -1,4 +1,3 @@
-# Convención del proyecto (la misma de ColaPrioridad):
 # MAYOR número = MAYOR prioridad, así el prioritario sale primero de la cola.
 PRIORIDAD_ALTA = 1      # Adultos mayores, movilidad reducida, etc.
 PRIORIDAD_NORMAL = 0
@@ -12,7 +11,14 @@ class Pasajero:
     (la Parada) es quien le asigna el minuto de abordaje.
     """
 
-    def __init__(self, id, origen, destino, prioridad, minuto_llegada):
+    def __init__(
+        self,
+        id: int,
+        origen,
+        destino,
+        prioridad: int,
+        minuto_llegada
+    ):
         """
         Crea un pasajero que todavía no ha abordado. O(1).
 
