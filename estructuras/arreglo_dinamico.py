@@ -2,9 +2,9 @@ class Arreglo_dinamico:
     capacidadinicial = 1
 
     def __init__(self,):
-        self.capacidad = self.capacidadinicial
+        self.capacidad: int = self.capacidadinicial
         self.datos = [None] * self.capacidad
-        self.n = 0
+        self.n: int = 0
 
     def longitud (self):
         return self.n
