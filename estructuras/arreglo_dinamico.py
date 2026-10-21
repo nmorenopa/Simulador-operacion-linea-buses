@@ -27,6 +27,7 @@ class Arreglo_dinamico:
         for i in range(self.n):
             if self.datos[i] == valor:
                 print("El valor esta en la posicion: ", i)
+                return i
         return -1
 
     def mostrar (self):
@@ -90,17 +91,17 @@ class Arreglo_dinamico:
         return borrarpos
 
     def moda(self):
-        contador = 0
-        maximo = 0
+        mayor = 0
         if self.vacio():
             raise ValueError("El arreglo esta vacio")
         else:
-            moda = {}
+            moda = None
             for a in range(self.n):
+                contador = 0
                 for b in range(self.n):
                     if self.datos[a] == self.datos[b]:
                         contador += 1
-                if contador > maximo:
-                    maximo = contador
-                    moda = self.arreglo[a]
+                if contador > mayor:
+                    mayor = contador
+                    moda = self.datos[a]
         return moda
