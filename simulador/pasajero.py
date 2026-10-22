@@ -14,11 +14,11 @@ class Pasajero:
     def __init__(
         self,
         id: int,
-        origen,
-        destino,
+        origen: int,
+        destino: int,
         prioridad: int,
-        minuto_llegada
-    ):
+        minuto_llegada: int
+    )-> None:
         """
         Crea un pasajero que todavía no ha abordado. O(1).
 
@@ -44,11 +44,11 @@ class Pasajero:
         self.minuto_llegada = minuto_llegada
         self.minuto_abordaje = None    # None hasta que sube a un bus
 
-    def es_prioritario(self):
+    def es_prioritario(self)-> bool:
         """Devuelve True si tiene prioridad alta. O(1)."""
         return self.prioridad == PRIORIDAD_ALTA
 
-    def tiempo_espera(self):
+    def tiempo_espera(self)-> int | None:
         """
         Minutos que esperó en la fila (minuto_abordaje - minuto_llegada).
         Devuelve None si todavía no ha abordado. O(1).
@@ -58,7 +58,7 @@ class Pasajero:
 
         return self.minuto_abordaje - self.minuto_llegada
 
-    def __repr__(self):
+    def __repr__(self)-> str:
         """Texto corto para depurar y para mostrar en pantalla. O(1)."""
         tipo = "prioritario" if self.es_prioritario() else "normal"
         return f"Pasajero(id={self.id}, {self.origen}->{self.destino}, {tipo}, llegó={self.minuto_llegada})"

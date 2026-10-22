@@ -1,10 +1,10 @@
 from estructuras.nodo import Nodo   # Nodo central, compartido por todas las estructuras
-
+from typing import Any
 
 class NodoColaPrioridad(Nodo):
     """Nodo de la cola con prioridad: un Nodo con un campo extra (la prioridad)."""
 
-    def __init__(self, dato, prioridad):
+    def __init__(self, dato: Any, prioridad: int):
         super().__init__(dato)        # El padre inicializa dato y siguiente
         self.prioridad = prioridad    # Entero: mayor número = mayor prioridad
 
@@ -19,26 +19,26 @@ class ColaPrioridad:
     llegada (FIFO).
     """
 
-    def __init__(self):
+    def __init__(self)-> None:
         """Crea una cola vacía. O(1)."""
         self.cabeza = None    # Elemento de mayor prioridad (el próximo en salir)
         self._tamano = 0
 
-    def esta_vacia(self):
+    def esta_vacia(self)->bool:
         """Devuelve True si no hay elementos. O(1)."""
         return self._tamano == 0
 
-    def tamano(self):
+    def tamano(self)-> int:
         """Devuelve la cantidad de elementos. O(1)."""
         return self._tamano
 
-    def frente(self):
+    def frente(self)-> Any:
         """Devuelve el próximo dato en salir sin sacarlo, o None si está vacía. O(1)."""
         if self.esta_vacia():
             return None
         return self.cabeza.dato
 
-    def encolar(self, dato, prioridad):
+    def encolar(self, dato, prioridad)-> None:
         """
         Inserta el dato en su posición según su prioridad. O(n) en el peor caso.
         A igual prioridad, queda detrás de los que ya estaban.
@@ -60,10 +60,10 @@ class ColaPrioridad:
             actual.siguiente = nuevo             # Y el anterior apunta al nuevo
 
         self._tamano += 1
-        # NOTA (revisión): la prioridad se valida en pasajero.py (PRIORIDAD_ALTA=0,
-        # PRIORIDAD_NORMAL=1); aquí el TDA acepta cualquier entero comparable.
+        # La prioridad se valida en pasajero.py (PRIORIDAD_ALTA=1, PRIORIDAD_NORMAL=0);
+        # aquí la estructura acepta cualquier número comparable.
 
-    def desencolar(self):
+    def desencolar(self)-> Any:
         """Saca y devuelve el dato de mayor prioridad, o None si está vacía. O(1)."""
         if self.esta_vacia():
             return None

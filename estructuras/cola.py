@@ -1,4 +1,6 @@
 from estructuras.nodo import Nodo
+from typing import Any
+
 
 class Cola:
     """
@@ -14,12 +16,11 @@ class Cola:
         self.final = None     # Último nodo (donde se agrega)
         self._tamano = 0      # Contador interno: evita recorrer la lista para medir
 
-    def esta_vacia(self):
+    def esta_vacia(self) -> bool:
         """Devuelve True si no hay elementos. O(1)."""
-        return self.frente == None
-        # NOTA (revisión): en Python se compara con None usando "is None", no "== None".
+        return self.frente is None
 
-    def agregar(self, dato):
+    def agregar(self, dato: Any)-> None:
         """Agrega un dato al final de la cola. O(1)."""
         aux = Nodo(dato)
 
@@ -32,39 +33,33 @@ class Cola:
 
         self._tamano += 1
 
-    def borrar(self):
+    def borrar(self)-> Any:
         """Saca y devuelve el dato del frente, o None si está vacía. O(1)."""
         if self.esta_vacia():
             return None
 
         dato = self.frente.dato
-        aux = self.frente
 
         self.frente = self.frente.siguiente
 
         if self.frente is None:
             self.final = None
 
-        del aux
-        # NOTA (revisión): "del aux" no hace falta; Python libera la memoria solo.
         self._tamano -= 1
         return dato
 
-    def ver_frente(self):
+    def ver_frente(self)-> Any | None:
         """Devuelve el dato del frente sin sacarlo, o None si está vacía. O(1)."""
         if self.esta_vacia():
             return None
 
         return self.frente.dato
 
-    def longitud(self):
+    def longitud(self)-> int:
         """Devuelve la cantidad de elementos usando el contador interno. O(1)."""
         return self._tamano
-        # NOTA (revisión): se acordó el nombre tamano() para todas las estructuras;
-        # y también encolar/desencolar/frente en vez de agregar/borrar/ver_frente.
-        # Al renombrar, hay que avisar a quien use Cola (parada.py, simulador.py).
 
-    def mostrar(self):
+    def mostrar(self)-> None:
         """Imprime la cola de frente a final. O(n)."""
         aux = self.frente
 
@@ -73,5 +68,3 @@ class Cola:
             aux = aux.siguiente
 
         print("None")
-        # NOTA (revisión): imprimir mezcla lógica con interfaz. Para Streamlit
-        # sería más útil un método que devuelva una lista de datos.

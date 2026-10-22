@@ -1,4 +1,5 @@
 from estructuras.nodo import Nodo   # Nodo central, compartido por todas las estructuras
+from typing import Any
 
 
 class ColaCircular:
@@ -9,27 +10,41 @@ class ColaCircular:
     Por eso basta guardar los dos extremos y las operaciones son O(1).
     """
 
-    def __init__(self):
+    def __init__(self)-> None:
         """Crea una cola vacía. O(1)."""
         self.cabeza = None    # Primer nodo
         self.ultimo = None    # Último nodo; su siguiente apunta a cabeza
         self._tamano = 0      # Contador interno, evita recorrer para medir
 
-    def esta_vacia(self):
+    def esta_vacia(self)-> bool:
         """Devuelve True si no hay elementos. O(1)."""
         return self._tamano == 0
 
-    def tamano(self):
+    def tamano(self)-> int:
         """Devuelve la cantidad de elementos. O(1)."""
         return self._tamano
 
-    def frente(self):
+    def frente(self)-> Any:
         """Devuelve el primer dato sin sacarlo, o None si está vacía. O(1)."""
         if self.esta_vacia():
             return None
         return self.cabeza.dato
 
-    def encolar(self, dato):
+    def siguiente(self)-> Any | None:
+        """
+        Rota la cola: la cabeza pasa a ser el último y la cabeza avanza al nodo
+        siguiente. Devuelve el dato de la nueva cabeza, o None si la cola está
+        vacía. No crea ni borra nodos, solo mueve dos punteros. O(1).
+        """
+        if self.esta_vacia():
+            return None
+        
+        self.ultimo = self.cabeza
+        self.cabeza = self.cabeza.siguiente
+        
+        return self.cabeza.dato
+
+    def encolar(self, dato: Any)->None:
         """Agrega un dato al final de la cola. O(1)."""
         nuevo_nodo = Nodo(dato)
 
@@ -46,7 +61,7 @@ class ColaCircular:
         nuevo_nodo.siguiente = self.cabeza
         self._tamano += 1
 
-    def desencolar(self):
+    def desencolar(self)-> Any | None:
         """
         Saca y devuelve el primer dato (FIFO).
         Si la cola está vacía devuelve None. O(1).
@@ -67,7 +82,3 @@ class ColaCircular:
 
         self._tamano -= 1
         return dato_retorno
-
-    # NOTA (revisión): falta siguiente() (la rotación: devolver la parada actual
-    # y pasar a la siguiente sin sacarla), que es lo que usa el simulador para
-    # recorrer la ruta en ciclo.
