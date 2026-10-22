@@ -4,12 +4,12 @@ from PIL import Image, ImageTk
 # Crear ventana
 ventana = tk.Tk()
 ventana.title("simulador de buses")
-ventana.geometry("900x720")
+ventana.geometry("900x600")
 ventana.resizable(False, False)
 
 # Cargar imagen con la misma resolución de la ventana
 imagen = Image.open("imagenes/fondo.png")
-imagen = imagen.resize((900, 720))
+imagen = imagen.resize((900, 600))
 fondo = ImageTk.PhotoImage(imagen)
 
 # Colocar imagen como fondo
