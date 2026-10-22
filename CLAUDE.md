@@ -1,0 +1,7 @@
+- Proyecto de Estructuras de Datos. Los estudiantes deben poder explicar TODO el código en la sustentación.
+- NO modifiques estructuras/ ni la lógica de simulador/. La interfaz solo lee Simulador.estado(), .reporte() y llama avanzar_tick(), pausar(), reanudar(), deshacer(), agregar_bus().
+- Interfaz en Tkinter: un solo Canvas con el fondo y los sprites. Nunca uses time.sleep(); la animación se hace con ventana.after().
+- Guarda las referencias de los ImageTk.PhotoImage o desaparecen.
+- Trabaja por fases pequeñas y pídeme confirmación antes de pasar a la siguiente.
+- Comenta el código en español, de forma didáctica.
+- Cada vez que escribas o cambies un archivo, anótalo en docs/registro_uso_ia.md (archivo, qué hiciste, fecha).
