@@ -47,13 +47,3 @@
 - **Por qué esta estructura:** el recorrido se repite sin fin.
 - **Demo:** al llegar a la última parada, la ruta vuelve a empezar.
 
-
-## 4. Un minuto en el simulador
-
-1. **Llegan pasajeros** → Cola: se forman en la fila de su parada.
-2. **Bajan pasajeros** → Arreglo dinámico: sale quien llegó a su destino.
-3. **Suben pasajeros** → Cola con prioridad: los prioritarios, primero.
-4. **Avanza el bus** → Cola circular: pasa a la siguiente parada.
-
-Aparte, cuando el operador agrega un bus o pausa, puede deshacer la última acción (**Pila**).
-
