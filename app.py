@@ -1,9 +1,14 @@
 """
 Interfaz gráfica del simulador de buses (Tkinter).
 
-FASE 2a: dibuja el fondo, las 8 paradas y los buses del Simulador, cada uno
-en la celda de su parada y con el sprite de su dirección. Todavía no hay
-movimiento suave: un botón provisional avanza un tick y los buses saltan.
+FASE 2c: dibuja el fondo, los buses del Simulador y los pasajeros que esperan
+en cada parada (azul = prioritario, gris = normal). Un botón provisional
+avanza un tick y los buses se ANIMAN desde su parada hasta la siguiente,
+siguiendo la vía (giran en las esquinas y cambian de sprite). Las filas de
+pasajeros y el reloj se actualizan cuando termina la animación.
+
+La animación es solo visual: avanzar_tick() cambia el estado de golpe y la
+interfaz dibuja el recorrido entre el estado de antes y el de después.
 
 Separación: la interfaz NO contiene lógica de la simulación. Solo crea el
 Simulador, llama avanzar_tick() y lee estado() para dibujar.
@@ -40,6 +45,8 @@ ARCHIVOS_SPRITES = {
 # ---------------------------------------------------------------
 # Parámetros de la simulación
 # ---------------------------------------------------------------
+# Para que en la demo se vean filas largas en las paradas: subir TASA_LLEGADA
+# (por ejemplo 0.5), bajar CAPACIDAD_BUS (por ejemplo 5) o usar menos buses.
 NUMERO_BUSES = 3
 CAPACIDAD_BUS = 20
 TASA_LLEGADA = 0.3              # Probabilidad de que llegue un pasajero por parada y minuto
@@ -51,8 +58,12 @@ SEMILLA = 42                    # Con la misma semilla, la simulación se repite
 # Constantes de la interfaz
 # ---------------------------------------------------------------
 # Si es True se dibujan las marcas de depuración (celdas y esquinas).
-# Las marcas de las paradas se dibujan siempre, porque son parte de la demo.
 MOSTRAR_DEPURACION = True
+
+# Si es True se dibujan las placas blancas P1..P8 junto a cada parada.
+# Están apagadas porque el fondo actual ya trae un letrero junto a cada parada;
+# el código se conserva por si se vuelve a un fondo sin letreros.
+MOSTRAR_PLACAS = False
 
 # El fondo (900x600) se divide en una grid de celdas de 60x60 px:
 # 15 columnas (0 a 14) y 10 filas (0 a 9). La vía mide justo una celda de ancho.
@@ -132,6 +143,20 @@ ESQUINAS = [
 # Distancia (en píxeles, a lo largo de la ruta) entre dos buses que están
 # en la misma parada: con 2 buses quedan a -30 y +30 px de la parada.
 SEPARACION_BUSES = 60
+
+# Animación: cuánto dura el recorrido de un tick y cada cuánto se dibuja un
+# cuadro. 600 / 16 ≈ 38 cuadros (unos 60 cuadros por segundo).
+DURACION_ANIMACION_MS = 600
+PASO_ANIMACION_MS = 16
+
+# Pasajeros que esperan: un punto por pasajero, en una fila sobre la acera.
+MAX_PUNTOS_POR_PARADA = 12      # Si hay más, se muestra "+N" con los que no caben
+DIAMETRO_PASAJERO = 10          # px
+PASO_PASAJEROS = 13             # px entre centros de dos puntos seguidos (deja 3 px libres)
+DISTANCIA_ACERA = 60            # px desde el centro de la vía hasta la línea de puntos
+COLOR_PRIORITARIO = "#286EFF"   # Azul
+COLOR_NORMAL = "#B9B9B9"        # Gris claro: con borde negro se distingue de la acera
+COLOR_BORDE_PASAJERO = "black"
 
 
 def direccion_entre(celda_actual, celda_siguiente):
@@ -215,17 +240,18 @@ def cargar_sprites():
         sprites_bus[direccion] = ImageTk.PhotoImage(imagen)
 
 
-def dibujar_etiqueta(canvas, x, y, texto, color):
+def dibujar_etiqueta(canvas, x, y, texto, color, tags=()):
     """
     Escribe un texto con un recuadro de color detrás, para que se lea bien
     sobre el fondo. Primero se crea el texto, luego se mide con bbox() y
     se dibuja el recuadro debajo con tag_lower().
+    tags: etiquetas del Canvas para el texto y el recuadro (para poder borrarlos).
     """
     id_texto = canvas.create_text(x, y, text=texto, fill="white",
-                                  font=("Arial", 9, "bold"))
+                                  font=("Arial", 9, "bold"), tags=tags)
     x1, y1, x2, y2 = canvas.bbox(id_texto)
     id_recuadro = canvas.create_rectangle(x1 - 2, y1 - 1, x2 + 2, y2 + 1,
-                                          fill=color, outline="")
+                                          fill=color, outline="", tags=tags)
     canvas.tag_lower(id_recuadro, id_texto)
 
 
@@ -246,7 +272,7 @@ def hacia_la_acera(columna, fila):
 
 def dibujar_paradas(canvas):
     """
-    Dibuja la marca de cada parada, pensada para la demo:
+    Dibuja la placa de cada parada (solo si MOSTRAR_PLACAS es True):
       - una línea blanca en el borde exterior de su celda (el "andén"),
         para indicar dónde se detiene el bus;
       - un rectángulo blanco con su nombre (P1..P8) sobre la acera,
@@ -316,51 +342,291 @@ def dibujar_depuracion(canvas):
         dibujar_etiqueta(canvas, x, y + 14, f"E{numero + 1}", "blue")
 
 
-def posiciones_buses(buses):
-    """
-    Recibe la lista de buses de Simulador.estado() y devuelve, para cada
-    uno, una tupla (x, y, direccion) con dónde dibujarlo.
+# ---------------------------------------------------------------
+# Pasajeros que esperan en las paradas
+# ---------------------------------------------------------------
+# REGLA DE UBICACIÓN de la fila de puntos de cada parada:
+#   1. Lado: la fila va sobre la ACERA de afuera del circuito, del mismo lado
+#      que el letrero (hacia_la_acera), a DISTANCIA_ACERA = 60 px del centro de
+#      la vía, o sea, por la mitad de la acera.
+#   2. Inicio: el primer punto queda a la altura del centro de la celda de la
+#      parada, justo al lado del letrero.
+#   3. Hacia dónde crece: se ALEJA del letrero. En el fondo, los letreros de
+#      arriba y de abajo están a la derecha de su parada, así que la fila
+#      crece hacia la IZQUIERDA; los de los lados izquierdo y derecho están
+#      en la parte de arriba, así que la fila crece hacia ABAJO.
+#   4. Orden: primero los azules (prioritarios, los más cerca del letrero) y
+#      después los grises (normales). Como máximo MAX_PUNTOS_POR_PARADA.
+#   5. "+N": va del otro lado del letrero, donde empieza la fila: a la derecha
+#      del letrero en los lados de arriba y abajo, y encima del letrero en los
+#      lados izquierdo y derecho.
+# La acera mide unos 60 px de fondo, por eso la fila va A LO LARGO de la
+# acera: 12 puntos ocupan 12 * 13 = 156 px y no cabrían alejándose de la vía.
 
-    Pasos:
-      1. Se agrupan los buses por parada (diccionario id_parada -> buses).
-      2. Cada parada se convierte en su celda de la ruta con PARADAS[id].
-      3. Si en un grupo hay varios buses, se reparten a lo largo de la ruta,
-         SEPARACION_BUSES px uno de otro y centrados en la parada:
-         con 2 buses: -30 y +30; con 3 buses: -60, 0 y +60.
+def hacia_donde_crece_la_fila(columna, fila):
     """
+    Devuelve la dirección (dx, dy) en la que crece la fila de pasajeros:
+    hacia la izquierda (-1, 0) en los lados de arriba y abajo, y hacia
+    abajo (0, 1) en los lados izquierdo y derecho (ver la regla arriba).
+    """
+    dx, dy = hacia_la_acera(columna, fila)
+    if dy != 0:
+        return -1, 0    # Acera arriba o abajo: la fila es horizontal y va a la izquierda
+    return 0, 1         # Acera a la izquierda o derecha: la fila es vertical y va hacia abajo
+
+
+def puntos_de_parada(parada):
+    """
+    Recibe una parada de Simulador.estado()["paradas"] y calcula qué dibujar:
+    devuelve (puntos, sobrantes, posicion_texto).
+      - puntos: lista de (x, y, es_prioritario), primero los azules.
+      - sobrantes: cuántos esperan pero no caben (el N de "+N"); sale del
+        dato "esperando", no de contar puntos.
+      - posicion_texto: (x, y) del centro del texto "+N".
+    No dibuja nada, así se puede probar sin ventana.
+    """
+    visibles = min(parada["esperando"], MAX_PUNTOS_POR_PARADA)
+    azules = min(parada["prioritarios"], visibles)
+    sobrantes = parada["esperando"] - visibles
+
+    columna, fila = RUTA[PARADAS[parada["id"]]]
+    x_parada, y_parada = centro_celda(columna, fila)
+    acera_x, acera_y = hacia_la_acera(columna, fila)
+    crece_x, crece_y = hacia_donde_crece_la_fila(columna, fila)
+
+    # Punto de partida: frente a la parada, a mitad de la acera
+    inicio_x = x_parada + acera_x * DISTANCIA_ACERA
+    inicio_y = y_parada + acera_y * DISTANCIA_ACERA
+
+    puntos = []
+    for k in range(visibles):
+        x = inicio_x + crece_x * PASO_PASAJEROS * k
+        y = inicio_y + crece_y * PASO_PASAJEROS * k
+        puntos.append((x, y, k < azules))   # Los primeros "azules" son prioritarios
+
+    # "+N" del otro lado del letrero: si la fila crece a la izquierda, el
+    # texto va a la derecha (48 px); si crece hacia abajo, va encima (32 px).
+    if crece_x != 0:
+        posicion_texto = (inicio_x + 48, inicio_y)
+    else:
+        posicion_texto = (inicio_x, inicio_y - 32)
+
+    return puntos, sobrantes, posicion_texto
+
+
+def dibujar_pasajeros(canvas, paradas):
+    """
+    Borra los puntos anteriores y dibuja los de cada parada (y su "+N").
+    Todo lleva la etiqueta "pasajero", así canvas.delete("pasajero") los
+    quita todos antes de redibujar y no se acumulan.
+    """
+    canvas.delete("pasajero")
+    radio = DIAMETRO_PASAJERO / 2
+    for parada in paradas:
+        puntos, sobrantes, (texto_x, texto_y) = puntos_de_parada(parada)
+        for x, y, es_prioritario in puntos:
+            color = COLOR_PRIORITARIO if es_prioritario else COLOR_NORMAL
+            canvas.create_oval(x - radio, y - radio, x + radio, y + radio,
+                               fill=color, outline=COLOR_BORDE_PASAJERO,
+                               tags="pasajero")
+        if sobrantes > 0:
+            dibujar_etiqueta(canvas, texto_x, texto_y, f"+{sobrantes}", "black",
+                             tags="pasajero")
+
+
+def dibujar_leyenda(canvas):
+    """Dibuja, debajo del minuto, qué significa cada color de punto."""
+    canvas.create_rectangle(8, 36, 128, 76, fill="white", outline="black")
+    radio = DIAMETRO_PASAJERO / 2
+    for fila, (color, texto) in enumerate([(COLOR_PRIORITARIO, "Prioritario"),
+                                           (COLOR_NORMAL, "Normal")]):
+        y = 47 + fila * 18
+        canvas.create_oval(18 - radio, y - radio, 18 + radio, y + radio,
+                           fill=color, outline=COLOR_BORDE_PASAJERO)
+        canvas.create_text(30, y, text=texto, anchor="w", font=("Arial", 10))
+
+
+def distancia_de_parada(id_parada):
+    """Distancia en px, a lo largo de la ruta, desde la celda 0 hasta la celda de una parada."""
+    return PARADAS[id_parada] * TAM_CELDA
+
+
+def desplazamientos_buses(buses):
+    """
+    Recibe la lista de buses de Simulador.estado() y devuelve un diccionario
+    id_bus -> desplazamiento en px a lo largo de la ruta respecto a su parada.
+
+    Si un bus está solo en su parada, su desplazamiento es 0. Si varios
+    coinciden, se reparten SEPARACION_BUSES px uno de otro, centrados en la
+    parada: con 2 buses: -30 y +30; con 3 buses: -60, 0 y +60.
+    """
+    # 1. Agrupar los buses por parada (diccionario id_parada -> lista de buses)
     grupos = {}
     for bus in buses:
         if bus["parada"] not in grupos:
             grupos[bus["parada"]] = []
         grupos[bus["parada"]].append(bus)
 
-    posiciones = []
-    for id_parada, grupo in grupos.items():
-        distancia_parada = PARADAS[id_parada] * TAM_CELDA
+    # 2. Repartir los buses de cada grupo
+    desplazamientos = {}
+    for grupo in grupos.values():
         cantidad = len(grupo)
-        for j in range(cantidad):
-            desplazamiento = (j - (cantidad - 1) / 2) * SEPARACION_BUSES
-            posiciones.append(punto_en_ruta(distancia_parada + desplazamiento))
+        for j, bus in enumerate(grupo):
+            desplazamientos[bus["id"]] = (j - (cantidad - 1) / 2) * SEPARACION_BUSES
+    return desplazamientos
+
+
+def posiciones_buses(buses):
+    """
+    Recibe la lista de buses de Simulador.estado() y devuelve un diccionario
+    id_bus -> (x, y, direccion) con dónde y con qué sprite dibujar cada bus
+    cuando está detenido en su parada (incluido su desplazamiento).
+    """
+    desplazamientos = desplazamientos_buses(buses)
+    posiciones = {}
+    for bus in buses:
+        distancia = distancia_de_parada(bus["parada"]) + desplazamientos[bus["id"]]
+        posiciones[bus["id"]] = punto_en_ruta(distancia)
     return posiciones
+
+
+def etiqueta_bus(id_bus):
+    """
+    Etiqueta (tag) única del sprite de un bus en el Canvas, por ejemplo "bus_2".
+    Con ella se encuentra el sprite para moverlo sin guardar su número de item.
+    """
+    return f"bus_{id_bus}"
+
+
+def dibujar_buses(canvas, buses):
+    """
+    Borra los sprites de bus que hubiera y crea uno por bus, en su parada.
+
+    Cada sprite lleva dos etiquetas: "bus" (la comparten todos, así
+    canvas.delete("bus") borra SOLO los buses y deja el fondo y las marcas)
+    y "bus_<id>" (única, para poder moverlo durante la animación).
+    """
+    canvas.delete("bus")
+    for id_bus, (x, y, direccion) in posiciones_buses(buses).items():
+        # anchor="center": el centro del sprite queda en (x, y)
+        canvas.create_image(x, y, image=sprites_bus[direccion], anchor="center",
+                            tags=("bus", etiqueta_bus(id_bus)))
+
+
+def actualizar_minuto(canvas, minuto):
+    """Cambia el texto del recuadro del minuto (sin crear objetos nuevos)."""
+    canvas.itemconfigure("texto_minuto", text=f"Minuto: {minuto}")
 
 
 def redibujar(canvas, simulador):
     """
-    Borra los buses que estaban dibujados y los vuelve a dibujar con el
-    estado actual del Simulador; también actualiza el minuto.
-
-    Cada sprite de bus se crea con la etiqueta (tag) "bus". Así,
-    canvas.delete("bus") borra SOLO los buses y deja el fondo y las marcas.
+    Dibuja los buses, los pasajeros y el minuto según el estado actual del
+    Simulador. Se usa al iniciar; durante la animación los sprites se MUEVEN,
+    no se redibujan.
     """
     estado = simulador.estado()
+    dibujar_buses(canvas, estado["buses"])
+    dibujar_pasajeros(canvas, estado["paradas"])
+    actualizar_minuto(canvas, estado["minuto"])
 
-    canvas.delete("bus")
-    for x, y, direccion in posiciones_buses(estado["buses"]):
-        # anchor="center": el centro del sprite queda en (x, y)
-        canvas.create_image(x, y, image=sprites_bus[direccion],
-                            anchor="center", tags="bus")
 
-    canvas.itemconfigure("texto_minuto", text=f"Minuto: {estado['minuto']}")
+# ---------------------------------------------------------------
+# Animación de un tick
+# ---------------------------------------------------------------
+# Cómo funciona, en tres pasos:
+#   1. calcular_trayectos(): con el estado de ANTES y el de DESPUÉS del tick
+#      se calcula, para cada bus, desde qué distancia de la ruta sale y
+#      cuántos px debe recorrer.
+#   2. animar_cuadro(): dibuja UN cuadro (mueve cada sprite a la fracción
+#      del recorrido que toca) y le pide a Tkinter, con canvas.after(), que la
+#      vuelva a llamar dentro de PASO_ANIMACION_MS para el siguiente cuadro.
+#   3. Cuando se dibuja el último cuadro ya no se programa otro after():
+#      se llama a la función al_terminar.
+#
+# ¿Por qué after() y no un ciclo con time.sleep()? Tkinter dibuja la ventana
+# y atiende los clics en su ciclo principal (mainloop). Si nuestro código se
+# queda dormido dentro de un ciclo, mainloop no corre y la ventana se congela.
+# Con after() cada cuadro es una llamada corta: termina, Tkinter redibuja la
+# pantalla y, pasado el tiempo pedido, llama al siguiente cuadro.
+
+def recorrido_entre_paradas(id_salida, id_llegada):
+    """
+    Distancia en px a lo largo de la ruta desde la parada de salida hasta la
+    de llegada, siempre hacia adelante. El módulo (%) hace que la vuelta de
+    P8 (celda 29) a P1 (celda 1) dé (1 - 29) % 32 = 4 celdas = 240 px,
+    en vez de un número negativo.
+    """
+    celdas = (PARADAS[id_llegada] - PARADAS[id_salida]) % len(RUTA)
+    return celdas * TAM_CELDA
+
+
+def calcular_trayectos(estado_antes, estado_despues):
+    """
+    Devuelve una lista de trayectos (id_bus, distancia_inicial, recorrido),
+    uno por evento del tick. Si no hubo eventos (simulación en pausa), la
+    lista queda vacía y no se anima nada.
+
+    El desplazamiento por buses que comparten parada se incluye en ambos
+    extremos: el bus sale de donde estaba dibujado (con el desplazamiento de
+    antes) y llega exactamente a donde lo pone posiciones_buses() después.
+    """
+    desplazamientos_antes = desplazamientos_buses(estado_antes["buses"])
+    desplazamientos_despues = desplazamientos_buses(estado_despues["buses"])
+
+    trayectos = []
+    for evento in estado_despues["eventos"]:
+        id_bus = evento["bus"]
+        inicio = distancia_de_parada(evento["parada"]) + desplazamientos_antes[id_bus]
+        recorrido = (recorrido_entre_paradas(evento["parada"], evento["siguiente_parada"])
+                     - desplazamientos_antes[id_bus]
+                     + desplazamientos_despues[id_bus])
+        trayectos.append((id_bus, inicio, recorrido))
+    return trayectos
+
+
+def total_cuadros():
+    """Cuántos cuadros tiene la animación: 600 ms / 16 ms ≈ 38."""
+    return max(1, round(DURACION_ANIMACION_MS / PASO_ANIMACION_MS))
+
+
+def posicion_en_cuadro(trayecto, cuadro, cuadros):
+    """
+    Devuelve (x, y, direccion) de un bus en el cuadro dado (de 1 a cuadros).
+    fraccion va de 0 a 1: en el último cuadro vale exactamente 1 y el bus
+    queda en su punto de llegada.
+    """
+    id_bus, inicio, recorrido = trayecto
+    fraccion = cuadro / cuadros
+    return punto_en_ruta(inicio + recorrido * fraccion)
+
+
+def mover_bus(canvas, id_bus, x, y, direccion):
+    """
+    Mueve el sprite existente de un bus a (x, y) y le pone el sprite de la
+    dirección dada. No borra ni crea objetos, así no hay parpadeo.
+    """
+    canvas.coords(etiqueta_bus(id_bus), x, y)
+    canvas.itemconfigure(etiqueta_bus(id_bus), image=sprites_bus[direccion])
+
+
+def animar_cuadro(canvas, trayectos, cuadro, cuadros, al_terminar):
+    """
+    Dibuja un cuadro de la animación moviendo todos los buses a la vez, y
+    programa el siguiente con canvas.after(). Así todos llegan juntos.
+
+    canvas.after(ms, funcion, arg1, arg2, ...) NO espera: solo le deja a
+    Tkinter el encargo "dentro de ms milisegundos llama a funcion(arg1, ...)"
+    y regresa de inmediato.
+    """
+    for trayecto in trayectos:
+        x, y, direccion = posicion_en_cuadro(trayecto, cuadro, cuadros)
+        mover_bus(canvas, trayecto[0], x, y, direccion)
+
+    if cuadro < cuadros:
+        canvas.after(PASO_ANIMACION_MS, animar_cuadro,
+                     canvas, trayectos, cuadro + 1, cuadros, al_terminar)
+    else:
+        al_terminar()
 
 
 def crear_marcador_minuto(canvas):
@@ -397,19 +663,53 @@ def main():
     canvas.create_image(0, 0, image=cargar_fondo(), anchor="nw")
     if MOSTRAR_DEPURACION:
         dibujar_depuracion(canvas)
-    dibujar_paradas(canvas)   # Después, para que quede encima de la depuración
+    if MOSTRAR_PLACAS:
+        dibujar_paradas(canvas)   # Después, para que quede encima de la depuración
     crear_marcador_minuto(canvas)
+    dibujar_leyenda(canvas)
 
     cargar_sprites()
     redibujar(canvas, simulador)
 
-    # TEMPORAL (solo fase 2a): botón para avanzar un tick a mano y comprobar
-    # que los buses saltan a la parada correcta. Se reemplaza en la fase 2b
-    # por la animación con ventana.after().
-    def avanzar_un_tick():
-        simulador.avanzar_tick()
-        redibujar(canvas, simulador)
+    # Bandera: True mientras hay una animación en curso. Mientras lo sea no se
+    # puede pedir otro tick (además el botón queda desactivado).
+    animando = False
 
+    def avanzar_un_tick():
+        """
+        Avanza la simulación UN minuto y anima el recorrido de los buses.
+        El minuto mostrado solo cambia cuando termina la animación.
+        """
+        nonlocal animando     # Para poder cambiar la variable de main()
+        if animando:
+            return
+
+        estado_antes = simulador.estado()
+        simulador.avanzar_tick()          # Salto instantáneo del modelo
+        estado_despues = simulador.estado()
+
+        trayectos = calcular_trayectos(estado_antes, estado_despues)
+        if not trayectos:
+            return            # En pausa: no hubo eventos, no hay nada que animar
+
+        animando = True
+        boton_tick.config(state="disabled")
+
+        def al_terminar():
+            """
+            Se llama tras el último cuadro: muestra las filas de pasajeros y el
+            minuto nuevos, y libera el botón.
+            """
+            nonlocal animando
+            dibujar_pasajeros(canvas, estado_despues["paradas"])
+            actualizar_minuto(canvas, estado_despues["minuto"])
+            animando = False
+            boton_tick.config(state="normal")
+
+        animar_cuadro(canvas, trayectos, 1, total_cuadros(), al_terminar)
+
+    # PROVISIONAL: este botón se reemplaza en la fase 3 por los controles
+    # definitivos (reproducir, pausar, etc.).
     boton_tick = tk.Button(ventana, text="Avanzar tick", command=avanzar_un_tick)
     boton_tick.pack(pady=4)
 
