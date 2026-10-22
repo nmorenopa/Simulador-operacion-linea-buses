@@ -1,23 +1,26 @@
 """
 Interfaz gráfica del simulador de buses (Tkinter).
 
-FASE 2c: dibuja el fondo, los buses del Simulador y los pasajeros que esperan
-en cada parada (azul = prioritario, gris = normal). Un botón provisional
-avanza un tick y los buses se ANIMAN desde su parada hasta la siguiente,
-siguiendo la vía (giran en las esquinas y cambian de sprite). Las filas de
-pasajeros y el reloj se actualizan cuando termina la animación.
+FASE 3: dibuja el fondo, los buses del Simulador (con su contador "c/n") y
+los pasajeros que esperan en cada parada (azul = prioritario, gris = normal).
+Con Play la simulación corre sola: en cada tick los buses se ANIMAN desde su
+parada hasta la siguiente, siguiendo la vía. Una barra de controles debajo
+del Canvas permite pausar, agregar buses, deshacer y reiniciar con otros
+valores. Filas, contadores y reloj se actualizan cuando termina cada animación.
 
 La animación es solo visual: avanzar_tick() cambia el estado de golpe y la
 interfaz dibuja el recorrido entre el estado de antes y el de después.
 
 Separación: la interfaz NO contiene lógica de la simulación. Solo crea el
-Simulador, llama avanzar_tick() y lee estado() para dibujar.
+Simulador, lee estado() y llama avanzar_tick(), pausar(), reanudar(),
+agregar_bus() y deshacer().
 """
 import tkinter as tk
 from pathlib import Path
 
 from PIL import Image, ImageTk
 
+from estructuras.cola import Cola
 from simulador.simulador import Simulador
 
 
@@ -149,6 +152,21 @@ SEPARACION_BUSES = 60
 # cuadro. 600 / 16 ≈ 38 cuadros (unos 60 cuadros por segundo).
 DURACION_ANIMACION_MS = 600
 PASO_ANIMACION_MS = 16
+
+# Bucle automático: espera entre el fin de un tick y el siguiente, y cada
+# cuánto se revisa si se quitó la pausa.
+PAUSA_ENTRE_TICKS_MS = 200
+REVISION_EN_PAUSA_MS = 100
+
+# Tope de buses que deja agregar la interfaz (el Simulador no tiene tope).
+MAX_BUSES = 10
+
+# Cómo mostrar en pantalla cada acción de la Pila del Simulador.
+NOMBRES_ACCIONES = {
+    "agregar_bus": "agregar bus",
+    "pausar": "pausar",
+    "reanudar": "reanudar",
+}
 
 # Pasajeros que esperan: un punto por pasajero, en una fila sobre la acera.
 MAX_PUNTOS_POR_PARADA = 12      # Si hay más, se muestra "+N" con los que no caben
@@ -491,27 +509,64 @@ def posiciones_buses(buses):
     return posiciones
 
 
+# Etiquetas (tags) del Canvas para los objetos de cada bus. Un bus se dibuja
+# con 3 objetos: el sprite, el texto "c/n" y el recuadro negro detrás del texto.
+#   "bus"           -> todos los objetos de todos los buses (para borrarlos juntos)
+#   "bus_<id>"      -> los 3 objetos de UN bus (para moverlos juntos)
+#   "sprite_<id>"   -> solo la imagen de ese bus (para cambiarle el sprite)
+#   "contador_<id>" -> solo el texto y el recuadro "c/n" de ese bus
+
 def etiqueta_bus(id_bus):
-    """
-    Etiqueta (tag) única del sprite de un bus en el Canvas, por ejemplo "bus_2".
-    Con ella se encuentra el sprite para moverlo sin guardar su número de item.
-    """
+    """Etiqueta de todos los objetos de un bus, por ejemplo "bus_2"."""
     return f"bus_{id_bus}"
+
+
+def etiqueta_sprite(id_bus):
+    """Etiqueta de la imagen de un bus, por ejemplo "sprite_2"."""
+    return f"sprite_{id_bus}"
+
+
+def etiqueta_contador(id_bus):
+    """Etiqueta del contador "c/n" de un bus, por ejemplo "contador_2"."""
+    return f"contador_{id_bus}"
+
+
+def dibujar_contador(canvas, id_bus, x, y, pasajeros, capacidad):
+    """
+    Dibuja (o vuelve a dibujar) el contador "c/n" de un bus centrado en (x, y),
+    encima de su sprite: texto blanco sobre un recuadro negro, para que se lea
+    sobre el azul del bus. c = pasajeros a bordo, n = capacidad.
+    """
+    canvas.delete(etiqueta_contador(id_bus))
+    dibujar_etiqueta(canvas, x, y, f"{pasajeros}/{capacidad}", "black",
+                     tags=("bus", etiqueta_bus(id_bus), etiqueta_contador(id_bus)))
 
 
 def dibujar_buses(canvas, buses):
     """
-    Borra los sprites de bus que hubiera y crea uno por bus, en su parada.
-
-    Cada sprite lleva dos etiquetas: "bus" (la comparten todos, así
-    canvas.delete("bus") borra SOLO los buses y deja el fondo y las marcas)
-    y "bus_<id>" (única, para poder moverlo durante la animación).
+    Borra todos los objetos de bus que hubiera y dibuja cada bus en su
+    parada: primero el sprite y encima su contador "c/n".
+    Como todo lleva la etiqueta "bus", canvas.delete("bus") no deja objetos
+    sueltos (por ejemplo, cuando Deshacer quita un bus).
     """
     canvas.delete("bus")
-    for id_bus, (x, y, direccion) in posiciones_buses(buses).items():
+    posiciones = posiciones_buses(buses)
+    for bus in buses:
+        x, y, direccion = posiciones[bus["id"]]
         # anchor="center": el centro del sprite queda en (x, y)
         canvas.create_image(x, y, image=sprites_bus[direccion], anchor="center",
-                            tags=("bus", etiqueta_bus(id_bus)))
+                            tags=("bus", etiqueta_bus(bus["id"]), etiqueta_sprite(bus["id"])))
+        dibujar_contador(canvas, bus["id"], x, y, bus["pasajeros"], bus["capacidad"])
+
+
+def actualizar_contadores(canvas, buses):
+    """
+    Vuelve a escribir el contador "c/n" de cada bus, donde está su sprite
+    ahora. Se llama al terminar la animación de un tick.
+    """
+    for bus in buses:
+        x, y = canvas.coords(etiqueta_sprite(bus["id"]))
+        dibujar_contador(canvas, bus["id"], x, y, bus["pasajeros"], bus["capacidad"])
 
 
 def actualizar_minuto(canvas, minuto):
@@ -603,11 +658,17 @@ def posicion_en_cuadro(trayecto, cuadro, cuadros):
 
 def mover_bus(canvas, id_bus, x, y, direccion):
     """
-    Mueve el sprite existente de un bus a (x, y) y le pone el sprite de la
-    dirección dada. No borra ni crea objetos, así no hay parpadeo.
+    Mueve un bus a (x, y) con el sprite de la dirección dada, junto con su
+    contador. No borra ni crea objetos, así no hay parpadeo.
+
+    El sprite se pone exactamente en (x, y) con coords(). El contador (texto
+    y recuadro) se desplaza lo mismo que el sprite con move(dx, dy), así
+    lo sigue durante todo el recorrido.
     """
-    canvas.coords(etiqueta_bus(id_bus), x, y)
-    canvas.itemconfigure(etiqueta_bus(id_bus), image=sprites_bus[direccion])
+    x_actual, y_actual = canvas.coords(etiqueta_sprite(id_bus))
+    canvas.move(etiqueta_contador(id_bus), x - x_actual, y - y_actual)
+    canvas.coords(etiqueta_sprite(id_bus), x, y)
+    canvas.itemconfigure(etiqueta_sprite(id_bus), image=sprites_bus[direccion])
 
 
 def animar_cuadro(canvas, trayectos, cuadro, cuadros, al_terminar):
@@ -641,80 +702,355 @@ def crear_marcador_minuto(canvas):
                        font=("Arial", 11, "bold"), tags="texto_minuto")
 
 
-def main():
-    """Crea la ventana, el Simulador y el Canvas con el fondo, las paradas y los buses."""
-    ventana = tk.Tk()
-    ventana.title("Simulador de buses")
-    ventana.resizable(False, False)
+def validar_parametros(texto_tasa, texto_capacidad):
+    """
+    Revisa lo que el usuario escribió en los campos de tasa y capacidad.
+    Devuelve (tasa, capacidad, None) si los dos valores sirven, o
+    (None, None, mensaje_de_error) si alguno no sirve. No dibuja nada.
+      - Tasa: número entre 0 y 1 (se acepta coma decimal, por ejemplo "0,5").
+      - Capacidad: entero mayor o igual a 1.
+    """
+    try:
+        tasa = float(texto_tasa.strip().replace(",", "."))
+    except ValueError:
+        return None, None, "La tasa de llegada debe ser un número entre 0 y 1"
+    if not 0 <= tasa <= 1:      # También descarta "nan", que no cumple ninguna comparación
+        return None, None, "La tasa de llegada debe estar entre 0 y 1"
 
-    simulador = Simulador(
+    try:
+        capacidad = int(texto_capacidad.strip())
+    except ValueError:
+        return None, None, "La capacidad del bus debe ser un número entero"
+    if capacidad < 1:
+        return None, None, "La capacidad del bus debe ser 1 o más"
+
+    return tasa, capacidad, None
+
+
+def crear_simulador(tasa_llegada, capacidad_bus):
+    """
+    Crea un Simulador nuevo con la tasa y la capacidad dadas y el resto de
+    parámetros tomados de las constantes del inicio del archivo.
+    """
+    return Simulador(
         numero_paradas=NUMERO_PARADAS,
         numero_buses=NUMERO_BUSES,
-        capacidad_bus=CAPACIDAD_BUS,
-        tasa_llegada=TASA_LLEGADA,
+        capacidad_bus=capacidad_bus,
+        tasa_llegada=tasa_llegada,
         probabilidad_prioritario=PROBABILIDAD_PRIORITARIO,
         semilla=SEMILLA,
         intentos_llegada=INTENTOS_LLEGADA,
     )
 
-    # Un solo Canvas para todo: fondo, marcas y buses.
-    canvas = tk.Canvas(ventana, width=ANCHO, height=ALTO, highlightthickness=0)
-    canvas.pack()
 
-    # anchor="nw": la esquina superior izquierda de la imagen va en (0, 0)
-    canvas.create_image(0, 0, image=cargar_fondo(), anchor="nw")
-    if MOSTRAR_DEPURACION:
-        dibujar_depuracion(canvas)
-    if MOSTRAR_PLACAS:
-        dibujar_paradas(canvas)   # Después, para que quede encima de la depuración
-    crear_marcador_minuto(canvas)
-    dibujar_leyenda(canvas)
+# ---------------------------------------------------------------
+# La aplicación: Canvas, barra de controles y bucle automático
+# ---------------------------------------------------------------
+# BUCLE AUTOMÁTICO (sin time.sleep, todo con after()):
+#
+#   Play --> ciclo() --> avanzar_un_tick() --> animación (38 cuadros con after)
+#              ^                                         |
+#              |                                         v
+#              +--- after(200 ms) <--- terminar_tick(): dibuja pasajeros,
+#                   (o 100 ms si está       contadores y minuto; ejecuta las
+#                    en pausa: revisa)      operaciones pendientes
+#
+# OPERACIONES DEL OPERADOR (Play/Pausa, Agregar bus, Deshacer, Aplicar):
+# no se ejecutan a mitad de una animación. Cada clic mete la operación en la
+# Cola "pendientes" (FIFO: se ejecutan en el orden en que se pidieron). Si no
+# hay animación, se ejecutan enseguida; si la hay, terminar_tick() las
+# ejecuta todas justo al terminar, antes de pedir el siguiente tick.
 
-    cargar_sprites()
-    redibujar(canvas, simulador)
+class InterfazSimulador:
+    """
+    Guarda todo lo que la interfaz necesita recordar entre un clic y otro.
 
-    # Bandera: True mientras hay una animación en curso. Mientras lo sea no se
-    # puede pedir otro tick (además el botón queda desactivado).
-    animando = False
+    Atributos:
+        ventana: la ventana de Tkinter.
+        simulador: el Simulador actual.
+        canvas: el único Canvas (900x600) con el fondo, los pasajeros y los buses.
+        iniciado: False hasta el primer Play (al abrir la app no corre nada).
+        animando: True mientras se anima un tick.
+        id_ciclo: identificador del after() que llamará a ciclo(), o None.
+        pendientes: Cola (estructuras/cola.py) de operaciones que esperan a
+            que termine la animación.
+        boton_play: botón Play/Pausa (su texto sale de estado()["en_pausa"]).
+        etiqueta_mensaje: etiqueta donde se muestran los mensajes al usuario.
+    """
 
-    def avanzar_un_tick():
+    def __init__(self, ventana):
+        """Crea el Canvas, los controles y el primer Simulador (sin arrancar)."""
+        self.ventana = ventana
+        self.simulador = crear_simulador(TASA_LLEGADA, CAPACIDAD_BUS)
+        self.iniciado = False
+        self.animando = False
+        self.id_ciclo = None
+        self.pendientes = Cola()
+
+        # Un solo Canvas para todo: fondo, marcas, pasajeros y buses.
+        self.canvas = tk.Canvas(ventana, width=ANCHO, height=ALTO, highlightthickness=0)
+        self.canvas.pack()
+
+        # anchor="nw": la esquina superior izquierda de la imagen va en (0, 0)
+        self.canvas.create_image(0, 0, image=cargar_fondo(), anchor="nw")
+        if MOSTRAR_DEPURACION:
+            dibujar_depuracion(self.canvas)
+        if MOSTRAR_PLACAS:
+            dibujar_paradas(self.canvas)   # Encima de la depuración
+        crear_marcador_minuto(self.canvas)
+        dibujar_leyenda(self.canvas)
+        cargar_sprites()
+
+        self.crear_controles()
+        redibujar(self.canvas, self.simulador)
+        self.actualizar_controles()
+
+    # ----------------------------- controles -----------------------------
+
+    def crear_controles(self):
+        """
+        Crea la barra de controles DEBAJO del Canvas (un tk.Frame), así el
+        Canvas no cambia de tamaño ni de coordenadas.
+        """
+        barra = tk.Frame(self.ventana)
+        barra.pack(fill="x", padx=8, pady=6)
+
+        # Fila 1: botones de operación y la Pila de operaciones
+        fila_botones = tk.Frame(barra)
+        fila_botones.pack(fill="x")
+        self.boton_play = tk.Button(fila_botones, text="▶ Play", width=10,
+                                    command=lambda: self.pedir_operacion(("play_pausa",)))
+        self.boton_play.pack(side="left")
+        tk.Button(fila_botones, text="Agregar bus",
+                  command=lambda: self.pedir_operacion(("agregar_bus",))).pack(side="left", padx=4)
+        tk.Button(fila_botones, text="Deshacer",
+                  command=lambda: self.pedir_operacion(("deshacer",))).pack(side="left")
+        self.etiqueta_historial = tk.Label(fila_botones, anchor="w")
+        self.etiqueta_historial.pack(side="left", padx=12)
+
+        # Fila 2: parámetros para reiniciar la simulación
+        fila_parametros = tk.Frame(barra)
+        fila_parametros.pack(fill="x", pady=(6, 0))
+        tk.Label(fila_parametros, text="Tasa de llegada (0 a 1)").pack(side="left")
+        self.entrada_tasa = tk.Entry(fila_parametros, width=6)
+        self.entrada_tasa.insert(0, str(TASA_LLEGADA))
+        self.entrada_tasa.pack(side="left", padx=(4, 12))
+        tk.Label(fila_parametros, text="Capacidad del bus (entero >= 1)").pack(side="left")
+        self.entrada_capacidad = tk.Entry(fila_parametros, width=6)
+        self.entrada_capacidad.insert(0, str(CAPACIDAD_BUS))
+        self.entrada_capacidad.pack(side="left", padx=(4, 12))
+        tk.Button(fila_parametros, text="Aplicar y reiniciar",
+                  command=self.pedir_reinicio).pack(side="left")
+
+        # Última fila: mensajes para el usuario
+        self.etiqueta_mensaje = tk.Label(barra, text="Pulse Play para empezar", anchor="w",
+                                         fg="#1A4FA0")
+        self.etiqueta_mensaje.pack(fill="x", pady=(4, 0))
+
+    def actualizar_controles(self):
+        """
+        Pone el texto del botón Play/Pausa según el estado del Simulador:
+        dice "Pausa" solo si la simulación ya arrancó y NO está en pausa.
+        También muestra la Pila de operaciones (tamaño y acción del tope).
+        Se llama después de cada operación y de cada tick, así lo que se ve
+        siempre coincide con estado() (también tras Deshacer).
+        """
+        estado = self.simulador.estado()
+        if self.iniciado and not estado["en_pausa"]:
+            self.boton_play.config(text="⏸ Pausa")
+        else:
+            self.boton_play.config(text="▶ Play")
+
+        ultima = estado["ultima_accion"]
+        if ultima is None:
+            texto_ultima = "ninguna"
+        else:
+            texto_ultima = NOMBRES_ACCIONES.get(ultima, ultima)
+        self.etiqueta_historial.config(
+            text=f"Historial: {estado['historial']} acciones - última: {texto_ultima}")
+
+    def mostrar_mensaje(self, texto):
+        """Muestra un texto en la etiqueta de mensajes."""
+        self.etiqueta_mensaje.config(text=texto)
+
+    # ----------------------- operaciones del operador -----------------------
+
+    def pedir_operacion(self, operacion):
+        """
+        Recibe un clic del operador como una tupla, por ejemplo ("play_pausa",),
+        y la mete en la Cola de pendientes. Si no hay animación se ejecuta ya;
+        si la hay, se ejecutará en terminar_tick().
+        """
+        self.pendientes.agregar(operacion)
+        if self.animando:
+            self.mostrar_mensaje("Se hará al terminar el movimiento de los buses")
+        else:
+            self.ejecutar_pendientes()
+
+    def ejecutar_pendientes(self):
+        """Saca de la Cola y ejecuta, en orden de llegada, todas las operaciones pendientes."""
+        while not self.pendientes.esta_vacia():
+            self.ejecutar_operacion(self.pendientes.borrar())
+        self.actualizar_controles()
+
+    def ejecutar_operacion(self, operacion):
+        """Llama al método que corresponde según el nombre de la operación."""
+        nombre = operacion[0]
+        if nombre == "play_pausa":
+            self.alternar_play_pausa()
+        elif nombre == "agregar_bus":
+            self.agregar_bus()
+        elif nombre == "deshacer":
+            self.deshacer()
+        elif nombre == "aplicar":
+            self.reiniciar(operacion[1], operacion[2])
+
+    def pedir_reinicio(self):
+        """
+        Botón "Aplicar y reiniciar": valida los campos EN EL MOMENTO del clic.
+        Si algo no sirve, solo muestra el error (no cambia nada). Si sirve,
+        pide la operación ("aplicar", tasa, capacidad), que espera a que
+        termine la animación como las demás.
+        """
+        tasa, capacidad, error = validar_parametros(self.entrada_tasa.get(),
+                                                    self.entrada_capacidad.get())
+        if error is not None:
+            self.mostrar_mensaje(error)
+            return
+        self.pedir_operacion(("aplicar", tasa, capacidad))
+
+    def reiniciar(self, tasa, capacidad):
+        """
+        Crea un Simulador NUEVO con la tasa y capacidad dadas y el resto de
+        constantes (no se cambian atributos del Simulador viejo desde fuera).
+        Se pierde todo lo del Simulador anterior, incluida su Pila de
+        operaciones: es lo esperado, porque es otra simulación.
+        Cancela el after() pendiente del bucle y deja la app sin iniciar
+        (hay que pulsar Play), y redibuja buses, pasajeros y minuto desde cero.
+        """
+        self.cancelar_ciclo()
+        self.iniciado = False
+        self.simulador = crear_simulador(tasa, capacidad)
+        redibujar(self.canvas, self.simulador)
+        self.mostrar_mensaje(f"Reiniciado con tasa {tasa} y capacidad {capacidad}. "
+                             "Pulse Play para empezar")
+
+    def agregar_bus(self):
+        """
+        Agrega un bus con simulador.agregar_bus() (el Simulador lo pone en la
+        parada más llena). Con MAX_BUSES buses no se llama al Simulador.
+        Se vuelven a dibujar todos los buses: el nuevo aparece con su sprite y
+        su contador, y si comparte parada los demás se reacomodan.
+        """
+        if len(self.simulador.estado()["buses"]) >= MAX_BUSES:
+            self.mostrar_mensaje(f"No se pueden agregar más buses: el máximo es {MAX_BUSES}")
+            return
+        self.simulador.agregar_bus()
+        estado = self.simulador.estado()
+        dibujar_buses(self.canvas, estado["buses"])
+        nuevo = estado["buses"][-1]
+        self.mostrar_mensaje(f"Se agregó el bus {nuevo['id'] + 1} en la parada P{nuevo['parada'] + 1}")
+
+    def deshacer(self):
+        """
+        Deshace la última operación con simulador.deshacer() y muestra el texto
+        que devuelve. Si se quitó un bus, dibujar_buses() borra todo lo que
+        tiene la etiqueta "bus" y vuelve a dibujar los que quedan, así no
+        quedan objetos sueltos. Si se deshizo una pausa, el bucle lo nota solo
+        (ciclo() revisa estado()["en_pausa"]).
+        """
+        mensaje = self.simulador.deshacer()
+        if mensaje is None:
+            mensaje = "No hay nada que deshacer"
+        self.mostrar_mensaje(mensaje)
+        dibujar_buses(self.canvas, self.simulador.estado()["buses"])
+
+    def alternar_play_pausa(self):
+        """
+        - Primer Play: arranca el bucle SIN llamar a reanudar(), para no meter
+          en la Pila una acción que no ocurrió (el Simulador no estaba en pausa).
+        - Después: Pausa llama a pausar() y Play llama a reanudar(), así las
+          dos quedan en la Pila de operaciones del Simulador.
+        """
+        if not self.iniciado:
+            self.iniciado = True
+            self.mostrar_mensaje("Simulación en marcha")
+            self.programar_ciclo(0)
+        elif self.simulador.estado()["en_pausa"]:
+            self.simulador.reanudar()
+            self.mostrar_mensaje("Simulación reanudada")
+        else:
+            self.simulador.pausar()
+            self.mostrar_mensaje("Simulación en pausa")
+
+    # --------------------------- bucle automático ---------------------------
+
+    def programar_ciclo(self, espera_ms):
+        """Pide a Tkinter que llame a ciclo() dentro de espera_ms (cancela el pedido anterior)."""
+        self.cancelar_ciclo()
+        self.id_ciclo = self.ventana.after(espera_ms, self.ciclo)
+
+    def cancelar_ciclo(self):
+        """Cancela el after() pendiente del bucle, si lo hay."""
+        if self.id_ciclo is not None:
+            self.ventana.after_cancel(self.id_ciclo)
+            self.id_ciclo = None
+
+    def ciclo(self):
+        """
+        Un paso del bucle automático. Si la simulación está en pausa no pide
+        un tick: vuelve a revisar dentro de REVISION_EN_PAUSA_MS.
+        """
+        self.id_ciclo = None
+        if not self.iniciado or self.animando:
+            return
+        if self.simulador.estado()["en_pausa"]:
+            self.programar_ciclo(REVISION_EN_PAUSA_MS)
+        else:
+            self.avanzar_un_tick()
+
+    def avanzar_un_tick(self):
         """
         Avanza la simulación UN minuto y anima el recorrido de los buses.
-        El minuto mostrado solo cambia cuando termina la animación.
+        El minuto, los pasajeros y los contadores solo cambian al terminar.
         """
-        nonlocal animando     # Para poder cambiar la variable de main()
-        if animando:
-            return
-
-        estado_antes = simulador.estado()
-        simulador.avanzar_tick()          # Salto instantáneo del modelo
-        estado_despues = simulador.estado()
+        estado_antes = self.simulador.estado()
+        self.simulador.avanzar_tick()          # Salto instantáneo del modelo
+        estado_despues = self.simulador.estado()
 
         trayectos = calcular_trayectos(estado_antes, estado_despues)
-        if not trayectos:
-            return            # En pausa: no hubo eventos, no hay nada que animar
+        self.animando = True
+        # lambda: "cuando termine la animación, llama a terminar_tick con
+        # el estado de después" (animar_cuadro llama a al_terminar sin argumentos)
+        animar_cuadro(self.canvas, trayectos, 1, total_cuadros(),
+                      lambda: self.terminar_tick(estado_despues))
 
-        animando = True
-        boton_tick.config(state="disabled")
+    def terminar_tick(self, estado_despues):
+        """
+        Se llama tras el último cuadro de la animación: dibuja las filas, los
+        contadores y el minuto nuevos, ejecuta las operaciones que se pidieron
+        durante la animación y programa el siguiente paso del bucle.
+        """
+        dibujar_pasajeros(self.canvas, estado_despues["paradas"])
+        actualizar_contadores(self.canvas, estado_despues["buses"])
+        actualizar_minuto(self.canvas, estado_despues["minuto"])
+        self.animando = False
 
-        def al_terminar():
-            """
-            Se llama tras el último cuadro: muestra las filas de pasajeros y el
-            minuto nuevos, y libera el botón.
-            """
-            nonlocal animando
-            dibujar_pasajeros(canvas, estado_despues["paradas"])
-            actualizar_minuto(canvas, estado_despues["minuto"])
-            animando = False
-            boton_tick.config(state="normal")
+        self.ejecutar_pendientes()
 
-        animar_cuadro(canvas, trayectos, 1, total_cuadros(), al_terminar)
+        if self.iniciado:
+            if self.simulador.estado()["en_pausa"]:
+                self.programar_ciclo(REVISION_EN_PAUSA_MS)
+            else:
+                self.programar_ciclo(PAUSA_ENTRE_TICKS_MS)
 
-    # PROVISIONAL: este botón se reemplaza en la fase 3 por los controles
-    # definitivos (reproducir, pausar, etc.).
-    boton_tick = tk.Button(ventana, text="Avanzar tick", command=avanzar_un_tick)
-    boton_tick.pack(pady=4)
 
+def main():
+    """Crea la ventana y la interfaz, y arranca el ciclo principal de Tkinter."""
+    ventana = tk.Tk()
+    ventana.title("Simulador de buses")
+    ventana.resizable(False, False)
+    InterfazSimulador(ventana)
     ventana.mainloop()
 
 

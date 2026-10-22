@@ -249,6 +249,34 @@ def test_estado_tiene_los_datos_para_la_interfaz():
     assert set(e["buses"][0]) == {"id", "parada", "pasajeros", "capacidad", "ocupacion"}
 
 
+def test_estado_al_inicio_tiene_historial_vacio():
+    e = crear().estado()
+    assert e["historial"] == 0 and e["ultima_accion"] is None
+
+
+def test_estado_informa_el_tope_de_la_pila_sin_sacarlo():
+    sim = crear()
+    sim.pausar()
+    assert sim.estado()["historial"] == 1 and sim.estado()["ultima_accion"] == "pausar"
+    sim.reanudar()
+    sim.agregar_bus()
+    e = sim.estado()
+    assert e["historial"] == 3 and e["ultima_accion"] == "agregar_bus"
+    assert sim.historial.longitud() == 3          # consultar estado() no cambia la Pila
+    sim.deshacer()
+    e = sim.estado()
+    assert e["historial"] == 2 and e["ultima_accion"] == "reanudar"
+
+
+def test_estado_conserva_la_accion_que_no_se_pudo_deshacer():
+    sim = crear(buses=1)
+    bus = sim.agregar_bus()
+    bus.subir(Pasajero(1, 0, 1, PRIORIDAD_NORMAL, 0))
+    sim.deshacer()
+    e = sim.estado()
+    assert e["historial"] == 1 and e["ultima_accion"] == "agregar_bus"
+
+
 def test_reporte_al_inicio_no_divide_entre_cero():
     r = crear().reporte()
     assert r["espera_promedio"] == 0.0 and r["ocupacion_promedio"] == 0.0

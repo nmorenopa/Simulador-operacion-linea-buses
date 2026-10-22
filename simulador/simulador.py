@@ -219,6 +219,9 @@ class Simulador:
         Foto del momento actual para dibujar en pantalla: un diccionario con
         el minuto, si está en pausa, los datos de cada parada (con cuántos de los
         que esperan son prioritarios) y de cada bus, y los eventos del último tick.
+        También informa la Pila de operaciones: "historial" (cuántas acciones
+        hay, con longitud(), O(1)) y "ultima_accion" (la del tope, con
+        ver_tope(), O(1); None si la Pila está vacía), sin sacar nada de ella.
         Usa listas y diccionarios de Python solo para entregar datos a la
         interfaz; el estado real vive en nuestras estructuras. O(P + B).
         """
@@ -249,6 +252,8 @@ class Simulador:
             "paradas": paradas,
             "buses": buses,
             "eventos": self.eventos.mostrar(),
+            "historial": self.historial.longitud(),
+            "ultima_accion": self.historial.ver_tope(),
         }
 
     def reporte(self):
