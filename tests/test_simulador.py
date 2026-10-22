@@ -54,6 +54,46 @@ def test_con_tasa_1_llega_un_pasajero_por_parada_y_por_tick():
     assert [sim.paradas.posicion(i).esperando() for i in range(3)] == [1, 1, 1]
 
 
+@pytest.mark.parametrize("intentos", [0, -1, 2.5, "3", None])
+def test_intentos_llegada_invalidos_lanzan_error(intentos):
+    with pytest.raises(ValueError):
+        Simulador(4, 2, 10, 0.5, 0.2, 1, intentos_llegada=intentos)
+
+
+@pytest.mark.parametrize("extra", [{}, {"intentos_llegada": 1}])
+def test_con_un_intento_la_simulacion_es_igual_que_antes(extra):
+    # Valores tomados con el código ANTES de agregar intentos_llegada (misma semilla).
+    sim = Simulador(5, 2, 4, 0.6, 0.3, 123, **extra)
+    for _ in range(50):
+        sim.avanzar_tick()
+    assert sim.reporte() == {
+        "minuto": 50, "pasajeros_generados": 143, "pasajeros_abordados": 136,
+        "pasajeros_esperando": 7, "espera_promedio": 1.8088235294117647,
+        "ocupacion_promedio": 0.845, "buses": 2,
+    }
+    assert [sim.paradas.posicion(i).esperando() for i in range(5)] == [0, 0, 1, 0, 6]
+    assert sim.serie_esperando.mostrar() == [
+        2, 3, 3, 1, 2, 5, 4, 3, 4, 3, 2, 2, 3, 4, 3, 4, 5, 6, 5, 8, 6, 6, 4, 5, 8,
+        9, 9, 7, 8, 12, 10, 8, 7, 6, 8, 6, 6, 6, 7, 6, 5, 5, 6, 7, 8, 8, 8, 9, 9, 7,
+    ]
+
+
+def test_con_3_intentos_y_tasa_1_llegan_3_por_parada():
+    sim = Simulador(4, 1, 10, 1.0, 0.2, 1, intentos_llegada=3)
+    sim._generar_llegadas()
+    assert [sim.paradas.posicion(i).esperando() for i in range(4)] == [3, 3, 3, 3]
+
+
+def test_nunca_llegan_mas_de_k_por_parada_en_un_tick():
+    k = 3
+    sim = Simulador(5, 1, 10, 0.7, 0.2, 7, intentos_llegada=k)
+    for _ in range(200):
+        antes = [sim.paradas.posicion(i).total_llegados for i in range(5)]
+        sim.avanzar_tick()
+        despues = [sim.paradas.posicion(i).total_llegados for i in range(5)]
+        assert all(0 <= d - a <= k for a, d in zip(antes, despues))
+
+
 def test_con_tasa_0_no_llega_nadie():
     sim = crear(tasa=0)
     for _ in range(20):

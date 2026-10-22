@@ -47,11 +47,12 @@ ARCHIVOS_SPRITES = {
 # ---------------------------------------------------------------
 # Para que en la demo se vean filas largas en las paradas: subir TASA_LLEGADA
 # (por ejemplo 0.5), bajar CAPACIDAD_BUS (por ejemplo 5) o usar menos buses.
-NUMERO_BUSES = 3
+NUMERO_BUSES = 5
 CAPACIDAD_BUS = 20
-TASA_LLEGADA = 0.3              # Probabilidad de que llegue un pasajero por parada y minuto
+TASA_LLEGADA = 0.4              # Probabilidad de que llegue un pasajero por parada y minuto
 PROBABILIDAD_PRIORITARIO = 0.2
-SEMILLA = 42                    # Con la misma semilla, la simulación se repite igual
+INTENTOS_LLEGADA = 3            # Sorteos por parada y minuto: llegan de 0 a 3 pasajeros
+SEMILLA = 42                   # Con la misma semilla, la simulación se repite igual
 
 
 # ---------------------------------------------------------------
@@ -653,6 +654,7 @@ def main():
         tasa_llegada=TASA_LLEGADA,
         probabilidad_prioritario=PROBABILIDAD_PRIORITARIO,
         semilla=SEMILLA,
+        intentos_llegada=INTENTOS_LLEGADA,
     )
 
     # Un solo Canvas para todo: fondo, marcas y buses.

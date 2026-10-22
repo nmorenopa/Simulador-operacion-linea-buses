@@ -38,6 +38,9 @@ class Simulador:
         en_pausa: True si la simulación está detenida.
         capacidad_bus: capacidad de cada bus (también la de los que se agreguen).
         probabilidad_prioritario: probabilidad (0 a 1) de que un pasajero nuevo sea prioritario.
+        intentos_llegada: cuántas veces por minuto se sortea, en cada parada, si llega
+            un pasajero (cada sorteo con probabilidad tasa_llegada). Con 1 llega como
+            máximo un pasajero por parada y minuto; con K, como máximo K.
         _aleatorio: generador Random (con semilla, para poder repetir una simulación).
         _proximo_id: id que recibirá el próximo pasajero.
     """
@@ -50,12 +53,16 @@ class Simulador:
       capacidad_bus: int,
       tasa_llegada: float,
       probabilidad_prioritario: float,
-      semilla = None
+      semilla = None,
+      intentos_llegada: int = 1
     ):
         """
         Crea una simulación lista para arrancar en el minuto 0. O(P + B*P),
         con P paradas y B buses (cada bus arma su propia ruta de P paradas).
-        
+
+        intentos_llegada es opcional y va al final para no cambiar las llamadas
+        que ya existen; con el valor por defecto (1) la simulación es igual que antes.
+
         Lanza ValueError si algún parámetro no tiene sentido.
         """
         # Validaciones
@@ -69,7 +76,9 @@ class Simulador:
             raise ValueError("La tasa de llegada debe ser un valor entre 0 y 1")
         if not(0 <= probabilidad_prioritario <=1):
             raise ValueError("La probabilidad de prioritario debe ser un valor entre 0 y 1")
-        
+        if not isinstance(intentos_llegada, int) or intentos_llegada < 1:
+            raise ValueError("Los intentos de llegada deben ser un entero mayor o igual a 1")
+
         #Asignacion de valores iniciales de los atributos
         self.minuto = 0
         self.paradas = ArregloDinamico()
@@ -81,6 +90,7 @@ class Simulador:
         self.en_pausa = False
         self.capacidad_bus = capacidad_bus
         self.probabilidad_prioritario = probabilidad_prioritario
+        self.intentos_llegada = intentos_llegada
         self._aleatorio = Random(semilla)
         self._proximo_id = 0
         
@@ -305,27 +315,33 @@ class Simulador:
     
     def _generar_llegadas(self):
         """
-        En cada parada, con probabilidad tasa_llegada, llega un pasajero nuevo
-        con destino distinto del origen. O(P).
+        En cada parada se hacen intentos_llegada sorteos; en cada uno, con
+        probabilidad tasa_llegada, llega un pasajero nuevo con destino distinto
+        del origen. Así llegan entre 0 y K pasajeros por parada (K = intentos_llegada).
+        O(P * K).
+
+        Con K = 1 los llamados al generador aleatorio son exactamente los mismos
+        y en el mismo orden que antes, así una simulación con semilla no cambia.
         """
         for i in range(self.paradas.longitud()):
             parada = self.paradas.posicion(i)
-            if self._aleatorio.random() < parada.tasa_llegada:
-                # Destino al azar entre las OTRAS paradas, todas igual de probables:
-                # se elige entre 0 y n-2 y se salta el lugar del origen
-                destino = self._aleatorio.randrange(self.paradas.longitud() - 1)
-                if destino >= parada.id:
-                    destino += 1
-                
-                if self._aleatorio.random() < self.probabilidad_prioritario:
-                    prioridad = PRIORIDAD_ALTA
-                else:
-                    prioridad = PRIORIDAD_NORMAL
-                
-                pasajero = Pasajero(self._proximo_id, parada.id, destino, prioridad, self.minuto)
-                
-                self._proximo_id += 1
-                parada.recibir(pasajero)
+            for _ in range(self.intentos_llegada):
+                if self._aleatorio.random() < parada.tasa_llegada:
+                    # Destino al azar entre las OTRAS paradas, todas igual de probables:
+                    # se elige entre 0 y n-2 y se salta el lugar del origen
+                    destino = self._aleatorio.randrange(self.paradas.longitud() - 1)
+                    if destino >= parada.id:
+                        destino += 1
+
+                    if self._aleatorio.random() < self.probabilidad_prioritario:
+                        prioridad = PRIORIDAD_ALTA
+                    else:
+                        prioridad = PRIORIDAD_NORMAL
+
+                    pasajero = Pasajero(self._proximo_id, parada.id, destino, prioridad, self.minuto)
+
+                    self._proximo_id += 1
+                    parada.recibir(pasajero)
     
     def _total_esperando(self):
         """Pasajeros esperando en todas las paradas. O(P)."""
