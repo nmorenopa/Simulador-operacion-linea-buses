@@ -108,7 +108,7 @@ def test_destinos_siempre_validos_y_distintos_del_origen():
     for i in range(4):
         fila = sim.paradas.posicion(i).fila
         while not fila.esta_vacia():
-            p = fila.borrar()
+            p = fila.desencolar()
             assert p.origen == i and p.destino != i and 0 <= p.destino < 4
 
 
@@ -120,7 +120,7 @@ def test_ids_de_pasajero_unicos():
     for i in range(sim.paradas.longitud()):
         fila = sim.paradas.posicion(i).fila
         while not fila.esta_vacia():
-            ids.append(fila.borrar().id)
+            ids.append(fila.desencolar().id)
     assert len(ids) == len(set(ids)) == 20
 
 
@@ -128,7 +128,7 @@ def test_probabilidad_de_prioritarios_en_los_extremos():
     for prob, esperado in [(1, PRIORIDAD_ALTA), (0, PRIORIDAD_NORMAL)]:
         sim = crear(tasa=1, prob=prob, buses=1)
         sim._generar_llegadas()
-        assert sim.paradas.posicion(0).fila.ver_frente().prioridad == esperado
+        assert sim.paradas.posicion(0).fila.frente().prioridad == esperado
 
 
 def test_misma_semilla_misma_simulacion():
@@ -301,11 +301,13 @@ CAMPOS_EVENTO = {"bus", "parada", "bajaron", "esperando_antes", "prioritarios_an
 
 def prioritarios_reales(parada):
     """Cuenta recorriendo la fila (sin usar el contador) cuántos prioritarios hay."""
-    total, nodo = 0, parada.fila.frente
-    while nodo is not None:
-        if nodo.dato.es_prioritario():
-            total += 1
-        nodo = nodo.siguiente
+    total = 0
+    for k in range(parada.fila.cantidad_niveles):
+        nodo = parada.fila.niveles.posicion(k).frente   # Cola de cada nivel
+        while nodo is not None:
+            if nodo.dato.es_prioritario():
+                total += 1
+            nodo = nodo.siguiente
     return total
 
 

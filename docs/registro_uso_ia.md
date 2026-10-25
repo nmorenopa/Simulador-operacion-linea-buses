@@ -54,6 +54,3 @@ Según la presentación: *"Cada estructura fue implementada por algún integrant
 - **Qué hizo el equipo (70 %):** el resto de comentarios y docstrings, y la revisión de que describan correctamente lo que hace el código.
 - **Herramienta usada:** Claude
 
-## 4. Otro uso de IA durante el desarrollo
-
-Además de las tres actividades de la presentación, se usó un asistente de IA como apoyo de corrección de errores, explicación y revisión del código. El código propuesto por la IA en estas sesiones fue revisado, adaptado y probado por la persona antes de subirlo.

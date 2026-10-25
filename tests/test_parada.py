@@ -53,7 +53,7 @@ def test_los_que_no_caben_conservan_el_orden_de_llegada():
         p.recibir(pas(i, PRIORIDAD_NORMAL))
     bus = bus_con_capacidad(1, p)
     p.abordar(bus, 0)
-    assert [p.fila.borrar().id for _ in range(3)] == [2, 3, 4]
+    assert [p.fila.desencolar().id for _ in range(3)] == [2, 3, 4]
 
 
 def test_abordar_registra_minuto_y_espera():

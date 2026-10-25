@@ -1,7 +1,7 @@
-# MAYOR número = MAYOR prioridad, así el prioritario sale primero de la cola.
-PRIORIDAD_ALTA = 1      # Adultos mayores, movilidad reducida, etc.
-PRIORIDAD_NORMAL = 0
-
+# MENOR número = MAYOR prioridad, así el prioritario sale primero de la cola.
+PRIORIDAD_ALTA = 0      # Adultos mayores, movilidad reducida, etc.
+PRIORIDAD_NORMAL = 1
+NIVELES_PRIORIDAD = 2
 
 class Pasajero:
     """
@@ -11,14 +11,7 @@ class Pasajero:
     (la Parada) es quien le asigna el minuto de abordaje.
     """
 
-    def __init__(
-        self,
-        id: int,
-        origen: int,
-        destino: int,
-        prioridad: int,
-        minuto_llegada: int
-    )-> None:
+    def __init__(self, id: int, origen: int, destino: int, prioridad: int, minuto_llegada: int)-> None:
         """
         Crea un pasajero que todavía no ha abordado. O(1).
 

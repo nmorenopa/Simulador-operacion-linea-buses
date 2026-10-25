@@ -34,7 +34,7 @@ def test_prioridad_invalida_lanza_error():
 
 def test_prioridad_alta_sale_primero_en_la_cola_con_prioridad():
     """Comprueba que las constantes concuerdan con ColaPrioridad."""
-    cola = ColaPrioridad()
+    cola = ColaPrioridad(2)
     normal = Pasajero(1, 0, 2, PRIORIDAD_NORMAL, 0)
     alto = Pasajero(2, 0, 2, PRIORIDAD_ALTA, 1)
     cola.encolar(normal, normal.prioridad)

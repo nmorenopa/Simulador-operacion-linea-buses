@@ -1,74 +1,71 @@
-from estructuras.nodo import Nodo   # Nodo central, compartido por todas las estructuras
+from estructuras.cola import Cola
+from estructuras.arreglo_dinamico import ArregloDinamico
 from typing import Any
-
-class NodoColaPrioridad(Nodo):
-    """Nodo de la cola con prioridad: un Nodo con un campo extra (la prioridad)."""
-
-    def __init__(self, dato: Any, prioridad: int):
-        super().__init__(dato)        # El padre inicializa dato y siguiente
-        self.prioridad = prioridad    # Entero: mayor número = mayor prioridad
 
 
 class ColaPrioridad:
     """
-    Cola con prioridad implementada con una lista enlazada ordenada.
-
-    Convención: MAYOR número = MAYOR prioridad (1 pasa antes que 0).
-    La lista siempre está ordenada, así que el de mayor prioridad es la
-    cabeza. Entre elementos con la misma prioridad se respeta el orden de
-    llegada (FIFO).
+    Cola con prioridad implementada como un arreglo de colas.
+    
+    En donde a menor indice dentor del arreglo estos tienen mas prioridad.
+    CONVENCION: MENOR número = MAYOR prioridad
     """
-
-    def __init__(self)-> None:
-        """Crea una cola vacía. O(1)."""
-        self.cabeza = None    # Elemento de mayor prioridad (el próximo en salir)
+    def __init__(self, cantidad_niveles: int)-> None:
+        """
+        Crea un arreglo con k (cantidad_niveles) pocisiones y a cada uno le asigna una cola vacia. O(k)
+        """
+        
+        if cantidad_niveles < 1:
+            raise ValueError("La cantidad minima de niveles requerida es de 1")
+        
+        self.cantidad_niveles = cantidad_niveles
+        self.niveles = ArregloDinamico()
+        
+        for _ in range(cantidad_niveles):
+            self.niveles.agregaralfinal(Cola())
+        
         self._tamano = 0
-
-    def esta_vacia(self)->bool:
-        """Devuelve True si no hay elementos. O(1)."""
-        return self._tamano == 0
-
+    
     def tamano(self)-> int:
-        """Devuelve la cantidad de elementos. O(1)."""
+        """Devuelve la cantidad de elementos O(1)"""
         return self._tamano
-
-    def frente(self)-> Any:
-        """Devuelve el próximo dato en salir sin sacarlo, o None si está vacía. O(1)."""
+    
+    def esta_vacia(self)-> bool:
+        """Devuelve un booleano que indica si la cola esta vacia O(1)"""
+        return self.tamano() == 0
+    
+    def frente(self)-> Any | None:
+        """Devuelve el dato del primer elemento de la cola no vacia dentro de los k niveles O(k)"""
         if self.esta_vacia():
             return None
-        return self.cabeza.dato
-
-    def encolar(self, dato, prioridad)-> None:
-        """
-        Inserta el dato en su posición según su prioridad. O(n) en el peor caso.
-        A igual prioridad, queda detrás de los que ya estaban.
-        """
-        nuevo = NodoColaPrioridad(dato, prioridad)
-
-        # Caso 1: lista vacía, o el nuevo tiene ESTRICTAMENTE más prioridad que la cabeza
-        if self.esta_vacia() or prioridad > self.cabeza.prioridad:
-            nuevo.siguiente = self.cabeza
-            self.cabeza = nuevo
-        else:
-            # Caso 2: va en medio o al final. Se avanza mientras el siguiente
-            # tenga prioridad MAYOR O IGUAL (con ">=" el nuevo queda detrás de
-            # sus iguales y se conserva el orden de llegada)
-            actual = self.cabeza
-            while actual.siguiente is not None and actual.siguiente.prioridad >= prioridad:
-                actual = actual.siguiente
-            nuevo.siguiente = actual.siguiente   # El nuevo apunta a lo que seguía
-            actual.siguiente = nuevo             # Y el anterior apunta al nuevo
-
+        
+        primer_nivel_con_datos = self._primer_nivel_con_datos()
+        return primer_nivel_con_datos.ver_frente()
+    
+    def encolar(self, dato: Any, prioridad: int) -> None:
+        """Agrega el dato a la cola segun su prioridad(nivel) O(1)"""
+        if not(0 <= prioridad <= self.cantidad_niveles - 1):
+            raise ValueError(f"La prioridad debe estar entre 0 y {self.cantidad_niveles - 1}")
+        
+        self.niveles.posicion(prioridad).agregar(dato)
         self._tamano += 1
-        # La prioridad se valida en pasajero.py (PRIORIDAD_ALTA=1, PRIORIDAD_NORMAL=0);
-        # aquí la estructura acepta cualquier número comparable.
-
-    def desencolar(self)-> Any:
-        """Saca y devuelve el dato de mayor prioridad, o None si está vacía. O(1)."""
+    
+    def desencolar(self) -> Any | None:
+        """Saca y devuelve el dato de mayor prioridad, o None si está vacía. Dependiendo la cantidad k de niveles del arreglo O(k)."""
         if self.esta_vacia():
             return None
-
-        dato = self.cabeza.dato              # Guardar antes de mover la cabeza
-        self.cabeza = self.cabeza.siguiente  # Si era el único, queda en None
+        
+        primer_nivel_con_datos = self._primer_nivel_con_datos()
         self._tamano -= 1
-        return dato
+        return primer_nivel_con_datos.borrar()
+    
+    # Métodos privados (uso interno)
+    def _primer_nivel_con_datos(self)-> Cola | None:
+        """Devuelve la primera cola no vacia en un nivel no vacio"""
+        for k in range(self.cantidad_niveles):
+            if self.niveles.posicion(k).esta_vacia():
+                continue
+            
+            return self.niveles.posicion(k)
+        
+        return None
