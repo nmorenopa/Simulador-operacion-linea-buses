@@ -1,21 +1,9 @@
+import random
 from typing import Any
 
 class ArregloDinamico:
-    """
-    Arreglo dinámico: guarda sus elementos en un arreglo de tamaño fijo y,
-    cuando se llena, lo reemplaza por otro del doble de capacidad.
-
-    Atributos:
-        capacidad: cuántos elementos caben sin crecer.
-        datos: el arreglo interno de tamaño fijo (con None en los huecos libres).
-        n: cuántos elementos tiene realmente (los índices válidos van de 0 a n-1).
-
-    Agregar al final es O(1) amortizado: casi siempre es una sola asignación y
-    solo cuando se llena hay que copiar todo (O(n)), algo que ocurre cada vez
-    menos seguido porque la capacidad se duplica.
-    """
-
     capacidadinicial = 1
+    aureo = 1.618  # Factor del código C++
 
     def __init__(self)->None:
         """Crea un arreglo vacío con la capacidad inicial. O(1)."""
@@ -24,48 +12,42 @@ class ArregloDinamico:
         self.n: int = 0
 
     def longitud(self)->int:
-        """Devuelve cuántos elementos hay. O(1)."""
+        """O(1) - Solo retorna una variable."""
         return self.n
 
     def vacio(self)-> bool:
-        """Devuelve True si no hay elementos. O(1)."""
+        """O(1) - Solo compara una variable."""
         return self.n == 0
 
     def posicion(self, k: int)-> Any:
-        """
-        Devuelve el elemento en la posición k.
-        Lanza IndexError si k no está entre 0 y n-1. O(1).
-        """
+        """O(1) - Acceso directo a la memoria a través del índice."""
         if k < 0 or k >= self.n:
             raise IndexError("Índice fuera de rango")
         return self.datos[k]
 
     def contiene(self, valor: Any)-> bool:
-        """Devuelve True si el valor está en el arreglo. O(n)."""
+        """O(n) - Hay que recorrer todo el arreglo elemento por elemento para saber si existe."""
         for i in range(self.n):
             if self.datos[i] == valor:
                 return True
         return False
 
     def buscar(self, valor: Any)-> int:
-        """Devuelve la posición de la primera aparición del valor, o -1 si no está. O(n)."""
+        """O(n) - Búsqueda lineal, se revisa uno por uno hasta encontrar la coincidencia."""
         for i in range(self.n):
             if self.datos[i] == valor:
                 return i
         return -1
 
     def mostrar(self)-> list:
-        """
-        Devuelve una lista de Python con los elementos, solo para mostrarlos
-        en la interfaz o en las pruebas (no se usa dentro de las estructuras). O(n).
-        """
+        """O(n) - Recorre todos los elementos actuales para copiarlos en la lista a mostrar."""
         mostrar = []
         for i in range(self.n):
             mostrar.append(self.datos[i])
         return mostrar
 
     def contar(self, valor: Any)-> int:
-        """Devuelve cuántas veces aparece el valor. O(n)."""
+        """O(n) - Obligatoriamente visita cada elemento para contar las repeticiones."""
         k = 0
         for i in range(self.n):
             if self.datos[i] == valor:
@@ -73,10 +55,7 @@ class ArregloDinamico:
         return k
 
     def agrandar(self, nuevacapacidad: int)-> None:
-        """
-        Uso interno: crea un arreglo nuevo con la capacidad dada y copia
-        los n elementos uno por uno. O(n).
-        """
+        """O(n) al momento de crecer, ya que debe copiar los elementos al nuevo espacio de memoria."""
         arreglonuevo = [None] * nuevacapacidad
         for i in range(self.n):
             arreglonuevo[i] = self.datos[i]
@@ -84,44 +63,42 @@ class ArregloDinamico:
         self.capacidad = nuevacapacidad
 
     def cambiarposicion(self, k: int, valor: Any)-> None:
-        """
-        Reemplaza el elemento de la posición k por el valor dado.
-        Lanza IndexError si k no está entre 0 y n-1. O(1).
-        """
+        """O(1) - Modifica un valor accediendo directamente a su índice."""
         if k < 0 or k >= self.n:
             raise IndexError("Índice fuera de rango")
         self.datos[k] = valor
 
     def agregaralfinal(self, valor: Any)-> None:
-        """
-        Agrega el valor después del último elemento. Si el arreglo está lleno,
-        primero duplica su capacidad. O(1) amortizado (O(n) en el momento de crecer).
-        """
+        """O(1) amortizado - Generalmente es O(1), salvo cuando se llena y debe usar agrandar()."""
         if self.n == self.capacidad:
-            self.agrandar(self.capacidad * 2)
+            # Multiplicamos por 1.618 (número áureo) para controlar el crecimiento
+            self.agrandar(int(self.capacidad * self.aureo) + 1)
         self.datos[self.n] = valor
         self.n += 1
 
     def insertar(self, k: int, valor: Any)-> None:
         """
-        Inserta el valor en la posición k, corriendo una posición a la derecha
-        los elementos desde k. Se permite k == n (insertar al final).
-        Lanza IndexError si k no está entre 0 y n. O(n).
+        O(1) CONSTANTE: En vez de correr los elementos hacia la derecha (lo cual sería O(n)),
+        mandamos el elemento actual de la posición 'k' al final del arreglo
+        y ponemos el nuevo en 'k'.
         """
         if k < 0 or k > self.n:
             raise IndexError("Índice fuera de rango")
         if self.n == self.capacidad:
-            self.agrandar(self.capacidad * 2)
-        for i in range(self.n, k, -1):
-            self.datos[i] = self.datos[i - 1]
-        self.datos[k] = valor
+            self.agrandar(int(self.capacidad * self.aureo) + 1)
+            
+        if k == self.n:
+            self.datos[self.n] = valor
+        else:
+            # El que estaba en k se va al final
+            self.datos[self.n] = self.datos[k]
+            # El nuevo toma su lugar
+            self.datos[k] = valor
+            
         self.n += 1
 
     def borraralfinal(self)-> Any:
-        """
-        Quita y devuelve el último elemento.
-        Lanza IndexError si el arreglo está vacío. O(1).
-        """
+        """O(1) CONSTANTE: Simplemente bajamos el contador 'N' y limpiamos el dato."""
         if self.vacio():
             raise IndexError("El arreglo esta vacio")
         borrar = self.datos[self.n - 1]
@@ -131,35 +108,19 @@ class ArregloDinamico:
 
     def borrarposicion(self, k: int)-> Any:
         """
-        Quita y devuelve el elemento de la posición k, corriendo una posición a
-        la izquierda los que estaban después.
-        Lanza IndexError si k no está entre 0 y n-1. O(n).
+        O(1) CONSTANTE: En vez de correr los elementos a la izquierda (O(n)),
+        traemos el último elemento del arreglo a la posición 'k' y achicamos N.
         """
         if k < 0 or k >= self.n:
             raise IndexError("Fuera de rango")
+        
         borrarpos = self.datos[k]
-        for i in range(k, self.n - 1):
-            self.datos[i] = self.datos[i + 1]
+        
+        # Copiamos el último elemento a la posición que queremos borrar
+        self.datos[k] = self.datos[self.n - 1]
+        
+        # Limpiamos el último y achicamos
         self.datos[self.n - 1] = None
         self.n -= 1
         return borrarpos
 
-    def moda(self)-> Any | None:
-        """
-        Devuelve el valor que más se repite. Si hay empate, devuelve el que
-        aparece primero. Lanza ValueError si el arreglo está vacío. O(n²).
-        """
-        mayor = 0
-        if self.vacio():
-            raise ValueError("El arreglo esta vacio")
-        else:
-            moda = None
-            for a in range(self.n):
-                contador = 0
-                for b in range(self.n):
-                    if self.datos[a] == self.datos[b]:
-                        contador += 1
-                if contador > mayor:
-                    mayor = contador
-                    moda = self.datos[a]
-        return moda

@@ -53,4 +53,3 @@ Según la presentación: *"Cada estructura fue implementada por algún integrant
 - **Qué se hizo:** la IA redactó parte de los docstrings (con la complejidad O() de cada método), comentarios explicativos y anotaciones de tipos como `ruta: ColaCircular`.
 - **Qué hizo el equipo (70 %):** el resto de comentarios y docstrings, y la revisión de que describan correctamente lo que hace el código.
 - **Herramienta usada:** Claude
-
