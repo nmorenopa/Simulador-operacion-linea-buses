@@ -120,11 +120,10 @@ NUMERO_PARADAS = 8
 # una cada 4 celdas (32 / 8 = 4). Así el bus recorre siempre la misma
 # distancia entre una parada y la siguiente.
 #
-# Las paradas se ubican solo con la grid, por eso los letreros dibujados en
-# FONDO.png no coinciden del todo con ellas: algunas paradas no tienen letrero
-# y algunos letreros quedan sin parada. Para que eso no confunda, cada parada
-# lleva su propia marca (ver dibujar_paradas). Si se cambia el fondo, basta
-# con cambiar esta lista (y NUMERO_PARADAS si cambia la cantidad).
+# Las paradas se ubican solo con la grid
+#
+#Si se cambia el fondo, basta con cambiar esta lista (y NUMERO_PARADAS si 
+#cambia la cantidad).
 PARADAS = [
     1,    # P1: celda (3, 2),  arriba
     5,    # P2: celda (7, 2),  arriba
