@@ -7,8 +7,8 @@ Es un simulador visual de una línea de buses que recorre un circuito cerrado co
 (los **prioritarios** primero), los llevan a su destino y siguen dando vueltas.
 
 El usuario actúa como **operador** de la línea: puede iniciar y pausar la simulación,
-agregar buses, deshacer sus últimas acciones y reiniciar con otros valores de tasa de
-llegada y capacidad de los buses.
+agregar buses, deshacer sus últimas acciones, terminarla para ver sus **estadísticas en
+gráficas** y reiniciar con otros valores de tasa de llegada y capacidad de los buses.
 
 ---
 
@@ -57,13 +57,13 @@ controles** (abajo).
 │ [● Prioritario]                                          │
 │ [● Normal     ]        ●●●●○○○  (pasajeros esperando)    │
 │                ┌──────────────────────────┐              │
-│                │  🚌 8/20 →               │              │
+│                │  🚌 8/10 →               │              │
 │                │      (circuito)          │   MAPA       │
 │                │                          │              │
 │                └──────────────────────────┘              │
 ├──────────────────────────────────────────────────────────┤
-│ [▶ Play] [Agregar bus] [Deshacer]  Historial: 2 acciones │
-│ Tasa de llegada (0 a 1) [0.4]  Capacidad [20] [Aplicar…] │
+│ [▶ Play] [Agregar bus] [Deshacer] [Terminar] Historial: 2│
+│ Tasa de llegada (0 a 1) [0.5]  Capacidad [10] [Aplicar…] │
 │ Mensaje para el usuario                                  │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -75,7 +75,7 @@ controles** (abajo).
 | **Circuito** (vía con línea amarilla) | La ruta de los buses. Se recorre en **sentido horario**: arriba de izquierda a derecha, baja por la derecha, abajo de derecha a izquierda y sube por la izquierda. |
 | **Paradas P1 a P8** | Repartidas a la misma distancia sobre el circuito: P1, P2 y P3 en el lado de arriba; P4 en el lado derecho; P5, P6 y P7 en el lado de abajo; P8 en el lado izquierdo. |
 | **Bus** (sprite azul) | Cambia de imagen según la dirección en que avanza (norte, sur, este, oeste). |
-| **Contador `c/n` sobre el bus** | `c` = pasajeros a bordo, `n` = capacidad del bus. Ejemplo: `8/20`. |
+| **Contador `c/n` sobre el bus** | `c` = pasajeros a bordo, `n` = capacidad del bus. Ejemplo: `8/10`. |
 | **Puntos junto a cada parada** | Cada punto es un pasajero esperando. **Azul** = prioritario (adulto mayor, movilidad reducida…); **gris** = normal. Los azules se dibujan primero, más cerca de la parada. |
 | **`+N`** | Si en una parada esperan más de **12** personas, solo se dibujan 12 puntos y `+N` indica cuántas más hay. |
 | **Recuadro "Minuto: X"** | Reloj de la simulación (esquina superior izquierda). |
@@ -97,14 +97,15 @@ controles** (abajo).
 | **▶ Play / ⏸ Pausa** | Inicia, pausa o reanuda la simulación. El texto cambia según el estado. |
 | **Agregar bus** | Añade un bus nuevo a la flota. |
 | **Deshacer** | Revierte la última acción del operador. |
+| **Terminar** | Acaba la simulación y abre la ventana de **estadísticas** (sección 7.6). |
 | **Historial: N acciones - última: X** | Muestra cuántas acciones hay guardadas en el historial (para deshacer) y cuál es la más reciente. |
 
 **Fila 2 — Parámetros**
 
 | Control | Función |
 |---|---|
-| **Tasa de llegada (0 a 1)** | Probabilidad de que llegue un pasajero en cada sorteo. Valor inicial: `0.4`. |
-| **Capacidad del bus (entero ≥ 1)** | Cuántos pasajeros caben en cada bus. Valor inicial: `20`. |
+| **Tasa de llegada (0 a 1)** | Probabilidad de que llegue un pasajero en cada sorteo. Valor inicial: `0.5`. |
+| **Capacidad del bus (entero ≥ 1)** | Cuántos pasajeros caben en cada bus. Valor inicial: `10`. |
 | **Aplicar y reiniciar** | Empieza una simulación nueva con esos valores. |
 
 **Fila 3 — Mensajes**: una línea de texto azul donde la aplicación informa qué pasó
@@ -140,6 +141,9 @@ siguiente. Cada bus avanza exactamente **una parada por minuto**.
 ### 6.2 Estado inicial
 
 - **5 buses**, repartidos de forma pareja: arrancan en P1, P2, P4, P5 y P7.
+- Tasa de llegada `0.5` y capacidad `10` por bus. Con estos valores la línea es
+  **estable**: los buses van casi llenos (cerca del 90 % de ocupación) y se forman
+  filas moderadas que no crecen sin control.
 - Todos los buses vacíos y ninguna persona esperando.
 - Minuto 0.
 
@@ -218,18 +222,46 @@ Si algún valor no es válido, **no se cambia nada** y aparece el error correspo
 | Para ver… | Pruebe |
 |---|---|
 | Filas largas y `+N` en las paradas | Tasa `0.8` y capacidad `5` |
+| Una línea saturada (las filas crecen sin parar) | Tasa `0.5` y capacidad `8` |
 | Buses casi vacíos | Tasa `0.1` y capacidad `30` |
-| El efecto de reforzar la flota | Con filas largas, pulse **Agregar bus** varias veces |
+| El efecto de reforzar la flota | Con la línea saturada, pulse **Agregar bus** 2 veces cerca del minuto 40 y luego **Terminar**: en la gráfica de pasajeros esperando se ve cómo las filas bajan |
 | Prioritarios adelantándose | Capacidad baja (`3`–`5`) y observe que los puntos azules desaparecen primero |
 
-### 7.6 Acciones durante el movimiento de los buses
+### 7.6 Terminar y ver las estadísticas
+
+1. Pulse **Terminar** (con la simulación corriendo o en pausa).
+2. La simulación se detiene y se abre una ventana aparte, **"Estadísticas de la
+   simulación"**, con los datos hasta ese minuto.
+3. Mensaje: *"Simulación terminada en el minuto X. Use "Aplicar y reiniciar" para
+   empezar otra"*.
+
+La ventana de estadísticas contiene:
+
+| Parte | Qué muestra |
+|---|---|
+| **Encabezado** | Minuto en que terminó, tasa de llegada y capacidad usadas |
+| **Tarjetas** | Pasajeros generados, cuántos abordaron un bus, cuántos siguen esperando, espera promedio (en minutos), ocupación promedio de la flota y buses en servicio |
+| **Pasajeros esperando** (naranja) | Gráfica de línea: total de pasajeros esperando en todas las paradas, minuto a minuto |
+| **Ocupación de la flota** (azul) | Gráfica de línea: qué tan llenos iban los buses en promedio cada minuto (0 a 100 %). La línea punteada es el promedio |
+| **Esperando ahora en cada parada** | Una barra por parada con los que esperan al terminar: **azul** = prioritarios, **gris** = normales (los mismos colores del mapa) |
+| **¿Qué pasó con los generados?** | Anillo con el porcentaje de pasajeros que ya abordaron (verde) frente a los que siguen esperando (naranja) |
+
+> Pausar **no** abre las estadísticas: solo se muestran al pulsar Terminar.
+
+Después de terminar, los botones Play, Agregar bus, Deshacer y Terminar ya no hacen
+nada (aparece *"La simulación terminó: use "Aplicar y reiniciar" para empezar
+otra"*). Para seguir, pulse **Aplicar y reiniciar**: se cierra la ventana de
+estadísticas y empieza una simulación nueva. La ventana de estadísticas también se
+puede cerrar con su **X**.
+
+### 7.7 Acciones durante el movimiento de los buses
 
 Si pulsa un botón **mientras los buses se están moviendo**, la acción no se ejecuta en
 ese instante: aparece *"Se hará al terminar el movimiento de los buses"* y se realiza
 apenas lleguen a la parada. Si pulsa varios botones, se ejecutan **en el mismo orden**
 en que los pulsó. Así nunca se mezcla un cambio con una animación a medias.
 
-### 7.7 Cerrar la aplicación
+### 7.8 Cerrar la aplicación
 
 Cierre la ventana con la **X**. La simulación no se guarda.
 
@@ -249,6 +281,8 @@ Cierre la ventana con la **X**. La simulación no se guarda.
 | Se reanudó la simulación / Se volvió a pausar la simulación | Deshacer de una pausa / reanudación |
 | No hay nada que deshacer | Deshacer con historial vacío |
 | Se hará al terminar el movimiento de los buses | Botón pulsado durante la animación |
+| Simulación terminada en el minuto X. Use "Aplicar y reiniciar" para empezar otra | Al pulsar Terminar |
+| La simulación terminó: use "Aplicar y reiniciar" para empezar otra | Botón pulsado después de terminar |
 | Reiniciado con tasa T y capacidad C. Pulse Play para empezar | Reinicio correcto |
 | La tasa de llegada debe ser un número entre 0 y 1 | La tasa no es un número (ej. `abc`) |
 | La tasa de llegada debe estar entre 0 y 1 | La tasa es un número fuera de rango (ej. `1.5`, `-0.2`) |
@@ -265,8 +299,8 @@ constantes del inicio de `app.py` y volviendo a ejecutar la aplicación:
 | Constante | Valor actual | Qué controla |
 |---|---|---|
 | `NUMERO_BUSES` | `5` | Buses al iniciar o reiniciar |
-| `CAPACIDAD_BUS` | `20` | Capacidad inicial (también editable en la barra) |
-| `TASA_LLEGADA` | `0.4` | Tasa inicial (también editable en la barra) |
+| `CAPACIDAD_BUS` | `10` | Capacidad inicial (también editable en la barra) |
+| `TASA_LLEGADA` | `0.5` | Tasa inicial (también editable en la barra) |
 | `PROBABILIDAD_PRIORITARIO` | `0.2` | Probabilidad de que un pasajero sea prioritario |
 | `INTENTOS_LLEGADA` | `3` | Sorteos por parada y minuto (máximo de llegadas por minuto) |
 | `SEMILLA` | `42` | Semilla del azar; con `None` cada ejecución es distinta |
@@ -299,6 +333,7 @@ Las pruebas están en la carpeta `tests/` y no abren ninguna ventana.
 | Los buses no se mueven | Pulse **▶ Play**. Si el botón ya dice Play después de haber arrancado, la simulación está en pausa. |
 | Pulsé un botón y no pasó nada | Si ve *"Se hará al terminar el movimiento de los buses"*, se ejecutará en menos de un segundo. |
 | Deshacer no quita el bus que agregué | El bus lleva pasajeros; espere a que se bajen en sus destinos y vuelva a intentarlo. |
+| Los botones no responden y dice *"La simulación terminó…"* | Pulsó Terminar; use **Aplicar y reiniciar** para empezar otra simulación. |
 | Hay letreros en el fondo sin pasajeros | Algunos letreros del dibujo no son paradas reales; las paradas son las celdas con borde rojo. |
 
 ---
@@ -309,7 +344,7 @@ Las pruebas están en la carpeta `tests/` y no abren ninguna ventana.
 - El número de paradas (8) y la forma del circuito son fijos.
 - Desde la barra solo se pueden cambiar la tasa de llegada y la capacidad; el resto de
   parámetros se cambia en el código (sección 9).
-- El simulador calcula un **reporte** con estadísticas (pasajeros generados, abordados,
-  espera promedio, ocupación promedio), pero en esta versión **todavía no se muestra
-  en la interfaz**.
+- Las estadísticas solo se ven al **terminar**; no se actualizan mientras la simulación
+  corre ni se pueden guardar o exportar.
+- Una simulación terminada no se puede continuar: hay que reiniciarla.
 - La simulación no se guarda al cerrar la aplicación.

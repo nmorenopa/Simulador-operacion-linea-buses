@@ -60,7 +60,9 @@ def test_bajar_en_solo_baja_a_los_de_ese_destino():
     assert bus.cantidad_pasajeros() == 2
     assert bus.total_transportados == 3
     assert bus.bajar_en(1) == 0
-    assert [p.id for p in bus.pasajeros.mostrar()] == [2, 4]
+    # borrarposicion no conserva el orden (trae el último al hueco), por eso
+    # se comparan ordenados: lo importante es QUIÉNES quedan a bordo.
+    assert sorted(p.id for p in bus.pasajeros.mostrar()) == [2, 4]
 
 
 def test_avanzar_recorre_la_ruta_y_da_la_vuelta():

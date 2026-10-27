@@ -53,3 +53,13 @@ Según la presentación: *"Cada estructura fue implementada por algún integrant
 - **Qué se hizo:** la IA redactó parte de los docstrings (con la complejidad O() de cada método), comentarios explicativos y anotaciones de tipos como `ruta: ColaCircular`.
 - **Qué hizo el equipo (70 %):** el resto de comentarios y docstrings, y la revisión de que describan correctamente lo que hace el código.
 - **Herramienta usada:** Claude
+
+## 4. Registro de cambios hechos con IA
+
+| Fecha | Archivo | Qué se hizo |
+|---|---|---|
+| 2026-10-26 | `tests/test_arreglo_dinamico.py` | Se actualizaron las pruebas al nuevo `ArregloDinamico`: crecimiento por número áureo (1 → 2 → 4 → 7 → 12), `insertar` y `borrarposicion` en O(1) que no conservan el orden, y se quitó la prueba de `moda()` porque el método se eliminó. Se agregó una prueba de borrar el último y el único elemento. |
+| 2026-10-26 | `tests/test_bus.py` | En `test_bajar_en_solo_baja_a_los_de_ese_destino` se comparan los pasajeros que quedan **ordenados**, porque `borrarposicion` ya no conserva el orden. |
+| 2026-10-26 | `app.py` | Ventana de estadísticas (`tk.Toplevel` con su propio Canvas) que se abre al pausar y al pulsar el botón nuevo **Terminar**: 6 tarjetas con `reporte()`, gráficas de línea de `serie_esperando` y `serie_ocupacion` (leídas con `mostrar()`), barras de pasajeros por parada (de `estado()`) y anillo de abordados vs. esperando. Todo dibujado a mano en el Canvas, sin librerías nuevas. Se cierra al reanudar o reiniciar. No se modificó `simulador/` ni `estructuras/`. |
+| 2026-10-26 | `app.py` | La ventana de estadísticas ahora se abre **solo al pulsar Terminar** (ya no al pausar, deshacer ni agregar bus). Valores por defecto cambiados a tasa de llegada 0.5 y capacidad 10 por bus (escenario estable para el video de demostración). |
+| 2026-10-26 | `docs/manual_usuario.md` | Se documentó el botón **Terminar** y la ventana de estadísticas (nueva sección 7.6; las siguientes pasan a 7.7 y 7.8), con sus mensajes y un problema frecuente. Se actualizaron los valores por defecto (tasa 0.5, capacidad 10) en el diagrama, las tablas y los ajustes avanzados; se agregó la idea de experimento "línea saturada" (0.5 y 8) y se cambió la limitación que decía que el reporte no se mostraba en la interfaz. |

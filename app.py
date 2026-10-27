@@ -5,15 +5,16 @@ FASE 3: dibuja el fondo, los buses del Simulador (con su contador "c/n") y
 los pasajeros que esperan en cada parada (azul = prioritario, gris = normal).
 Con Play la simulación corre sola: en cada tick los buses se ANIMAN desde su
 parada hasta la siguiente, siguiendo la vía. Una barra de controles debajo
-del Canvas permite pausar, agregar buses, deshacer y reiniciar con otros
-valores. Filas, contadores y reloj se actualizan cuando termina cada animación.
+del Canvas permite pausar, agregar buses, deshacer, terminar y reiniciar con
+otros valores. Filas, contadores y reloj se actualizan cuando termina cada animación.
+Al pulsar "Terminar" se abre una ventana aparte con las estadísticas en gráficas.
 
 La animación es solo visual: avanzar_tick() cambia el estado de golpe y la
 interfaz dibuja el recorrido entre el estado de antes y el de después.
 
 Separación: la interfaz NO contiene lógica de la simulación. Solo crea el
-Simulador, lee estado() y llama avanzar_tick(), pausar(), reanudar(),
-agregar_bus() y deshacer().
+Simulador, lee estado(), reporte() y las series de estadísticas, y llama
+avanzar_tick(), pausar(), reanudar(), agregar_bus() y deshacer().
 """
 import tkinter as tk
 from pathlib import Path
@@ -48,11 +49,13 @@ ARCHIVOS_SPRITES = {
 # ---------------------------------------------------------------
 # Parámetros de la simulación
 # ---------------------------------------------------------------
-# Para que en la demo se vean filas largas en las paradas: subir TASA_LLEGADA
-# (por ejemplo 0.5), bajar CAPACIDAD_BUS (por ejemplo 5) o usar menos buses.
+# Valores elegidos para la demo: con tasa 0.5 y capacidad 10 la simulación es
+# ESTABLE (los buses van casi llenos, ~90 % de ocupación, y se forman filas
+# moderadas que no crecen sin control). Para saturarla y ver filas largas:
+# bajar CAPACIDAD_BUS a 8 o subir TASA_LLEGADA a 0.6.
 NUMERO_BUSES = 5
-CAPACIDAD_BUS = 20
-TASA_LLEGADA = 0.4              # Probabilidad de que llegue un pasajero por parada y minuto
+CAPACIDAD_BUS = 10
+TASA_LLEGADA = 0.5              # Probabilidad de que llegue un pasajero por parada y minuto
 PROBABILIDAD_PRIORITARIO = 0.2
 INTENTOS_LLEGADA = 3            # Sorteos por parada y minuto: llegan de 0 a 3 pasajeros
 SEMILLA = 42                   # Con la misma semilla, la simulación se repite igual
@@ -743,6 +746,334 @@ def crear_simulador(tasa_llegada, capacidad_bus):
 
 
 # ---------------------------------------------------------------
+# Ventana de estadísticas (se abre al pulsar "Terminar")
+# ---------------------------------------------------------------
+# Es una ventana aparte (tk.Toplevel) con SU PROPIO Canvas: el Canvas del
+# mapa no se toca. Las gráficas se dibujan a mano con rectángulos, líneas,
+# arcos y textos del Canvas; así no hace falta otra librería y cada gráfica
+# se puede explicar línea por línea.
+#
+# Los datos salen del Simulador, sin modificarlo:
+#   - reporte(): totales y promedios (tarjetas y gráfica de anillo).
+#   - estado(): cuántos esperan AHORA en cada parada (gráfica de barras).
+#   - serie_esperando y serie_ocupacion: el Simulador guarda una muestra por
+#     minuto "para las gráficas" (gráficas de línea). Solo se leen con
+#     mostrar(), que devuelve una copia en una lista de Python.
+
+ANCHO_ESTADISTICAS = 900
+ALTO_ESTADISTICAS = 640
+MARGEN_ESTADISTICAS = 20
+SEPARACION_PANELES = 16
+
+COLOR_FONDO_ESTADISTICAS = "#F2F4F8"
+COLOR_PANEL = "white"
+COLOR_BORDE_PANEL = "#D5DAE3"
+COLOR_TEXTO = "#1F2937"
+COLOR_TEXTO_SUAVE = "#6B7280"
+COLOR_CUADRICULA = "#E5E7EB"
+COLOR_ESPERANDO = "#E8710A"          # Naranja: pasajeros esperando
+COLOR_ESPERANDO_SUAVE = "#FCE3CC"    # Relleno bajo la línea (el Canvas no tiene transparencia)
+COLOR_OCUPACION = "#1A4FA0"          # Azul oscuro: ocupación de la flota
+COLOR_OCUPACION_SUAVE = "#D6E2F5"
+COLOR_ABORDARON = "#2E9E5B"          # Verde: pasajeros que ya subieron a un bus
+
+
+def paso_escala(maximo, divisiones):
+    """
+    Elige cuánto vale cada línea de la cuadrícula del eje Y para que
+    'divisiones' líneas alcancen a cubrir 'maximo', usando solo números
+    "redondos" (1, 2, 5, 10, 20, 50, ...).
+    Ejemplo: maximo=37 y divisiones=4 -> 10 (el eje queda 0, 10, 20, 30, 40).
+    """
+    base = 1
+    while True:
+        for multiplo in (1, 2, 5):
+            if multiplo * base * divisiones >= maximo:
+                return multiplo * base
+        base *= 10
+
+
+def dibujar_panel(canvas, x, y, ancho, alto, titulo=None):
+    """Dibuja un recuadro blanco con borde (y su título arriba a la izquierda, si se da)."""
+    canvas.create_rectangle(x, y, x + ancho, y + alto, fill=COLOR_PANEL,
+                            outline=COLOR_BORDE_PANEL)
+    if titulo is not None:
+        canvas.create_text(x + 14, y + 18, text=titulo, anchor="w",
+                           fill=COLOR_TEXTO, font=("Arial", 11, "bold"))
+
+
+def dibujar_tarjeta(canvas, x, y, ancho, alto, valor, texto, color):
+    """
+    Tarjeta con un número grande (valor) y lo que significa (texto) debajo.
+    La franja de color a la izquierda ayuda a relacionarla con las gráficas.
+    """
+    dibujar_panel(canvas, x, y, ancho, alto)
+    canvas.create_rectangle(x, y, x + 5, y + alto, fill=color, outline="")
+    canvas.create_text(x + 16, y + 30, text=valor, anchor="w",
+                       fill=color, font=("Arial", 18, "bold"))
+    canvas.create_text(x + 16, y + alto - 18, text=texto, anchor="w",
+                       fill=COLOR_TEXTO_SUAVE, font=("Arial", 9))
+
+
+def dibujar_cuadricula(canvas, izq, der, arriba, abajo, paso, divisiones, sufijo=""):
+    """
+    Dibuja las líneas horizontales de la cuadrícula y, a su izquierda, el
+    valor de cada una (0, paso, 2*paso, ...). Abajo queda el 0 y arriba el tope.
+    """
+    for k in range(divisiones + 1):
+        yy = abajo - (abajo - arriba) * k / divisiones
+        canvas.create_line(izq, yy, der, yy, fill=COLOR_CUADRICULA)
+        # :g quita los decimales que sobran (25.0 -> "25")
+        canvas.create_text(izq - 6, yy, text=f"{k * paso:g}{sufijo}", anchor="e",
+                           fill=COLOR_TEXTO_SUAVE, font=("Arial", 8))
+
+
+def dibujar_grafica_linea(canvas, x, y, ancho, alto, titulo, valores, color,
+                          color_suave, tope=None, sufijo="", promedio=None):
+    """
+    Gráfica de línea de una serie con un valor por minuto (valores[i] es el
+    minuto i + 1). Debajo de la línea se rellena un área de color suave.
+      - tope: valor que queda en la parte de arriba del eje Y. Si es None se
+        calcula con paso_escala() a partir del valor más grande.
+      - promedio: si se da, se dibuja como una línea punteada horizontal
+        (su valor va en el título, para que el texto no tape la línea).
+    """
+    dibujar_panel(canvas, x, y, ancho, alto, titulo)
+
+    # Zona donde va la gráfica: el panel menos el espacio del título y los ejes
+    izq = x + 48
+    der = x + ancho - 16
+    arriba = y + 42
+    abajo = y + alto - 28
+
+    if len(valores) == 0:
+        canvas.create_text((izq + der) / 2, (arriba + abajo) / 2,
+                           text="Aún no hay minutos simulados",
+                           fill=COLOR_TEXTO_SUAVE, font=("Arial", 10))
+        return
+
+    divisiones = 4
+    if tope is None:
+        paso = paso_escala(max(valores), divisiones)
+        tope = paso * divisiones
+    else:
+        paso = tope / divisiones
+
+    # Cada valor se convierte en un punto (px). El minuto define la x (de
+    # izquierda a derecha) y el valor la y (en el Canvas la y crece hacia abajo,
+    # por eso se resta desde "abajo").
+    n = len(valores)
+    puntos = []
+    for i in range(n):
+        if n == 1:
+            px = (izq + der) / 2
+        else:
+            px = izq + (der - izq) * i / (n - 1)
+        py = abajo - (abajo - arriba) * valores[i] / tope
+        puntos.extend([px, py])   # create_line y create_polygon reciben x1, y1, x2, y2, ...
+
+    # Orden de dibujo: lo último que se dibuja queda encima.
+    # 1) Relleno: un polígono que baja desde la línea hasta el eje X
+    if n >= 2:
+        canvas.create_polygon(izq, abajo, *puntos, der, abajo,
+                              fill=color_suave, outline="")
+    # 2) Cuadrícula encima del relleno, para que se sigan viendo las líneas
+    dibujar_cuadricula(canvas, izq, der, arriba, abajo, paso, divisiones, sufijo)
+    # 3) La línea de la serie y un punto en el último valor (el "ahora")
+    if n >= 2:
+        canvas.create_line(*puntos, fill=color, width=2)
+    ultimo_x, ultimo_y = puntos[-2], puntos[-1]
+    canvas.create_oval(ultimo_x - 4, ultimo_y - 4, ultimo_x + 4, ultimo_y + 4,
+                       fill=color, outline="white", width=2)
+
+    # 4) Promedio como línea punteada (dash = 4 px de línea, 3 px de hueco)
+    if promedio is not None:
+        py = abajo - (abajo - arriba) * promedio / tope
+        canvas.create_line(izq, py, der, py, fill=color, dash=(4, 3))
+
+    # Eje X: solo el primer y el último minuto, para no amontonar números
+    canvas.create_text(izq, abajo + 12, text="min 1", anchor="w",
+                       fill=COLOR_TEXTO_SUAVE, font=("Arial", 8))
+    canvas.create_text(der, abajo + 12, text=f"min {n}", anchor="e",
+                       fill=COLOR_TEXTO_SUAVE, font=("Arial", 8))
+
+
+def dibujar_barras_paradas(canvas, x, y, ancho, alto, paradas):
+    """
+    Una barra por parada con los pasajeros que esperan AHORA. Cada barra se
+    apila en dos partes con los mismos colores del mapa: abajo los
+    prioritarios (azul) y encima los normales (gris).
+    """
+    dibujar_panel(canvas, x, y, ancho, alto, "Esperando ahora en cada parada")
+
+    # Leyenda en la esquina superior derecha
+    leyenda_x = x + ancho - 190
+    for texto, color in (("Prioritarios", COLOR_PRIORITARIO), ("Normales", COLOR_NORMAL)):
+        canvas.create_rectangle(leyenda_x, y + 13, leyenda_x + 10, y + 23,
+                                fill=color, outline="")
+        canvas.create_text(leyenda_x + 14, y + 18, text=texto, anchor="w",
+                           fill=COLOR_TEXTO_SUAVE, font=("Arial", 8))
+        leyenda_x += 95
+
+    izq = x + 48
+    der = x + ancho - 16
+    arriba = y + 48
+    abajo = y + alto - 28
+
+    divisiones = 4
+    maximo = max(parada["esperando"] for parada in paradas)
+    paso = paso_escala(maximo, divisiones)
+    tope = paso * divisiones
+    dibujar_cuadricula(canvas, izq, der, arriba, abajo, paso, divisiones)
+
+    # Cada parada tiene un "hueco" del mismo ancho; la barra ocupa el 60 %
+    hueco = (der - izq) / len(paradas)
+    ancho_barra = hueco * 0.6
+    for i, parada in enumerate(paradas):
+        centro = izq + hueco * (i + 0.5)
+        x1 = centro - ancho_barra / 2
+        x2 = centro + ancho_barra / 2
+        prioritarios = parada["prioritarios"]
+        normales = parada["esperando"] - prioritarios
+        alto_prioritarios = (abajo - arriba) * prioritarios / tope
+        alto_normales = (abajo - arriba) * normales / tope
+
+        if prioritarios > 0:
+            canvas.create_rectangle(x1, abajo - alto_prioritarios, x2, abajo,
+                                    fill=COLOR_PRIORITARIO, outline="")
+        if normales > 0:
+            canvas.create_rectangle(x1, abajo - alto_prioritarios - alto_normales,
+                                    x2, abajo - alto_prioritarios,
+                                    fill=COLOR_NORMAL, outline="")
+        # Total encima de la barra y nombre de la parada debajo
+        canvas.create_text(centro, abajo - alto_prioritarios - alto_normales - 8,
+                           text=str(parada["esperando"]), fill=COLOR_TEXTO,
+                           font=("Arial", 8, "bold"))
+        canvas.create_text(centro, abajo + 12, text=f"P{parada['id'] + 1}",
+                           fill=COLOR_TEXTO_SUAVE, font=("Arial", 8))
+
+
+def dibujar_anillo(canvas, x, y, ancho, alto, abordados, esperando):
+    """
+    Gráfica de anillo: de todos los pasajeros generados, qué parte ya subió
+    a un bus (verde) y qué parte sigue esperando (naranja).
+    """
+    dibujar_panel(canvas, x, y, ancho, alto, "¿Qué pasó con los generados?")
+    total = abordados + esperando
+    if total == 0:
+        canvas.create_text(x + ancho / 2, y + alto / 2, text="Aún no llegan pasajeros",
+                           fill=COLOR_TEXTO_SUAVE, font=("Arial", 10))
+        return
+
+    radio = 62
+    grosor = 20
+    centro_x = x + 26 + radio
+    centro_y = y + alto / 2 + 12
+    caja = (centro_x - radio, centro_y - radio, centro_x + radio, centro_y + radio)
+
+    # create_arc dibuja una "rebanada" de pastel. Los ángulos van en grados:
+    # 0° es a la derecha (las 3 en punto) y 90° arriba. Con start=90 y un
+    # extent negativo, la rebanada arranca arriba y gira como el reloj.
+    if esperando == 0:
+        canvas.create_oval(*caja, fill=COLOR_ABORDARON, outline="")
+    elif abordados == 0:
+        canvas.create_oval(*caja, fill=COLOR_ESPERANDO, outline="")
+    else:
+        grados_abordados = 360 * abordados / total
+        canvas.create_arc(*caja, start=90, extent=-grados_abordados,
+                          fill=COLOR_ABORDARON, outline="")
+        canvas.create_arc(*caja, start=90 - grados_abordados,
+                          extent=-(360 - grados_abordados),
+                          fill=COLOR_ESPERANDO, outline="")
+    # Un círculo blanco en el centro convierte el pastel en un anillo
+    interior = radio - grosor
+    canvas.create_oval(centro_x - interior, centro_y - interior,
+                       centro_x + interior, centro_y + interior,
+                       fill=COLOR_PANEL, outline="")
+    # int() redondea hacia abajo: si alguien sigue esperando nunca dice "100 %"
+    canvas.create_text(centro_x, centro_y - 7, text=f"{int(100 * abordados / total)} %",
+                       fill=COLOR_TEXTO, font=("Arial", 14, "bold"))
+    canvas.create_text(centro_x, centro_y + 13, text="abordaron",
+                       fill=COLOR_TEXTO_SUAVE, font=("Arial", 8))
+
+    # Leyenda a la derecha del anillo, con las cantidades
+    leyenda_x = centro_x + radio + 22
+    filas = (("Abordaron", abordados, COLOR_ABORDARON),
+             ("Siguen esperando", esperando, COLOR_ESPERANDO),
+             ("Generados", total, COLOR_TEXTO))
+    for k, (texto, cantidad, color) in enumerate(filas):
+        fila_y = centro_y - 40 + k * 40
+        canvas.create_rectangle(leyenda_x, fila_y - 5, leyenda_x + 10, fila_y + 5,
+                                fill=color, outline="")
+        canvas.create_text(leyenda_x + 16, fila_y, text=texto, anchor="w",
+                           fill=COLOR_TEXTO_SUAVE, font=("Arial", 8))
+        canvas.create_text(leyenda_x + 16, fila_y + 15, text=str(cantidad), anchor="w",
+                           fill=COLOR_TEXTO, font=("Arial", 11, "bold"))
+
+
+def dibujar_estadisticas(canvas, reporte, paradas, serie_esperando,
+                         serie_ocupacion, tasa, capacidad):
+    """
+    Dibuja toda la ventana de estadísticas en el Canvas dado:
+      encabezado | 6 tarjetas con reporte() | 2 gráficas de línea por minuto |
+      barras por parada y anillo de abordados.
+    """
+    m = MARGEN_ESTADISTICAS
+    s = SEPARACION_PANELES
+    ancho_util = ANCHO_ESTADISTICAS - 2 * m
+
+    # Encabezado
+    canvas.create_text(m, 26, text="Estadísticas de la simulación", anchor="w",
+                       fill=COLOR_TEXTO, font=("Arial", 16, "bold"))
+    canvas.create_text(m, 52, anchor="w", fill=COLOR_TEXTO_SUAVE, font=("Arial", 10),
+                       text=f"Simulación terminada en el minuto {reporte['minuto']}  ·  "
+                            f"tasa de llegada {tasa}  ·  capacidad {capacidad} por bus")
+
+    # Fila de tarjetas: los valores de reporte()
+    tarjetas = (
+        (str(reporte["pasajeros_generados"]), "Generados", COLOR_TEXTO),
+        (str(reporte["pasajeros_abordados"]), "Abordaron un bus", COLOR_ABORDARON),
+        (str(reporte["pasajeros_esperando"]), "Siguen esperando", COLOR_ESPERANDO),
+        (f"{reporte['espera_promedio']:.1f} min", "Espera promedio", COLOR_ESPERANDO),
+        (f"{reporte['ocupacion_promedio'] * 100:.0f} %", "Ocupación promedio", COLOR_OCUPACION),
+        (str(reporte["buses"]), "Buses en servicio", COLOR_OCUPACION),
+    )
+    separacion_tarjetas = 10
+    ancho_tarjeta = (ancho_util - separacion_tarjetas * (len(tarjetas) - 1)) / len(tarjetas)
+    for i, (valor, texto, color) in enumerate(tarjetas):
+        dibujar_tarjeta(canvas, m + i * (ancho_tarjeta + separacion_tarjetas), 76,
+                        ancho_tarjeta, 78, valor, texto, color)
+
+    # Fila de gráficas de línea (una muestra por minuto)
+    y_lineas = 170
+    ancho_mitad = (ancho_util - s) / 2
+    ahora_esperando = serie_esperando[-1] if serie_esperando else 0
+    dibujar_grafica_linea(canvas, m, y_lineas, ancho_mitad, 220,
+                          f"Pasajeros esperando (ahora: {ahora_esperando})",
+                          serie_esperando, COLOR_ESPERANDO, COLOR_ESPERANDO_SUAVE)
+    # La ocupación viene de 0 a 1: se pasa a porcentaje para leerla mejor
+    ocupacion_porcentaje = [valor * 100 for valor in serie_ocupacion]
+    promedio_ocupacion = reporte["ocupacion_promedio"] * 100
+    if serie_ocupacion:
+        titulo_ocupacion = f"Ocupación de la flota (promedio: {promedio_ocupacion:.0f} %)"
+    else:
+        titulo_ocupacion = "Ocupación de la flota"
+        promedio_ocupacion = None          # Sin minutos no hay línea de promedio
+    dibujar_grafica_linea(canvas, m + ancho_mitad + s, y_lineas, ancho_mitad, 220,
+                          titulo_ocupacion, ocupacion_porcentaje,
+                          COLOR_OCUPACION, COLOR_OCUPACION_SUAVE,
+                          tope=100, sufijo=" %", promedio=promedio_ocupacion)
+
+    # Fila de abajo: barras por parada (más ancha) y anillo
+    y_abajo = y_lineas + 220 + s
+    alto_abajo = ALTO_ESTADISTICAS - m - y_abajo
+    ancho_barras = 520
+    dibujar_barras_paradas(canvas, m, y_abajo, ancho_barras, alto_abajo, paradas)
+    dibujar_anillo(canvas, m + ancho_barras + s, y_abajo, ancho_util - ancho_barras - s,
+                   alto_abajo, reporte["pasajeros_abordados"], reporte["pasajeros_esperando"])
+
+
+# ---------------------------------------------------------------
 # La aplicación: Canvas, barra de controles y bucle automático
 # ---------------------------------------------------------------
 # BUCLE AUTOMÁTICO (sin time.sleep, todo con after()):
@@ -768,20 +1099,31 @@ class InterfazSimulador:
         ventana: la ventana de Tkinter.
         simulador: el Simulador actual.
         canvas: el único Canvas (900x600) con el fondo, los pasajeros y los buses.
+        tasa, capacidad: valores con los que se creó el Simulador actual
+            (se muestran en el encabezado de las estadísticas).
         iniciado: False hasta el primer Play (al abrir la app no corre nada).
+        terminada: True después de pulsar "Terminar"; solo queda reiniciar.
         animando: True mientras se anima un tick.
         id_ciclo: identificador del after() que llamará a ciclo(), o None.
         pendientes: Cola (estructuras/cola.py) de operaciones que esperan a
             que termine la animación.
         boton_play: botón Play/Pausa (su texto sale de estado()["en_pausa"]).
         etiqueta_mensaje: etiqueta donde se muestran los mensajes al usuario.
+        ventana_estadisticas: la ventana (tk.Toplevel) de estadísticas, o
+            None si está cerrada.
+        canvas_estadisticas: el Canvas de esa ventana, donde van las gráficas.
     """
 
     def __init__(self, ventana):
         """Crea el Canvas, los controles y el primer Simulador (sin arrancar)."""
         self.ventana = ventana
-        self.simulador = crear_simulador(TASA_LLEGADA, CAPACIDAD_BUS)
+        self.tasa = TASA_LLEGADA
+        self.capacidad = CAPACIDAD_BUS
+        self.simulador = crear_simulador(self.tasa, self.capacidad)
         self.iniciado = False
+        self.terminada = False
+        self.ventana_estadisticas = None
+        self.canvas_estadisticas = None
         self.animando = False
         self.id_ciclo = None
         self.pendientes = Cola()
@@ -824,6 +1166,8 @@ class InterfazSimulador:
                   command=lambda: self.pedir_operacion(("agregar_bus",))).pack(side="left", padx=4)
         tk.Button(fila_botones, text="Deshacer",
                   command=lambda: self.pedir_operacion(("deshacer",))).pack(side="left")
+        tk.Button(fila_botones, text="Terminar",
+                  command=lambda: self.pedir_operacion(("terminar",))).pack(side="left", padx=4)
         self.etiqueta_historial = tk.Label(fila_botones, anchor="w")
         self.etiqueta_historial.pack(side="left", padx=12)
 
@@ -893,14 +1237,22 @@ class InterfazSimulador:
         self.actualizar_controles()
 
     def ejecutar_operacion(self, operacion):
-        """Llama al método que corresponde según el nombre de la operación."""
+        """
+        Llama al método que corresponde según el nombre de la operación.
+        Si la simulación ya terminó, solo se acepta "aplicar" (reiniciar).
+        """
         nombre = operacion[0]
+        if self.terminada and nombre != "aplicar":
+            self.mostrar_mensaje('La simulación terminó: use "Aplicar y reiniciar" para empezar otra')
+            return
         if nombre == "play_pausa":
             self.alternar_play_pausa()
         elif nombre == "agregar_bus":
             self.agregar_bus()
         elif nombre == "deshacer":
             self.deshacer()
+        elif nombre == "terminar":
+            self.terminar()
         elif nombre == "aplicar":
             self.reiniciar(operacion[1], operacion[2])
 
@@ -926,9 +1278,14 @@ class InterfazSimulador:
         operaciones: es lo esperado, porque es otra simulación.
         Cancela el after() pendiente del bucle y deja la app sin iniciar
         (hay que pulsar Play), y redibuja buses, pasajeros y minuto desde cero.
+        Cierra la ventana de estadísticas: eran de la simulación anterior.
         """
         self.cancelar_ciclo()
         self.iniciado = False
+        self.terminada = False
+        self.cerrar_estadisticas()
+        self.tasa = tasa
+        self.capacidad = capacidad
         self.simulador = crear_simulador(tasa, capacidad)
         redibujar(self.canvas, self.simulador)
         self.mostrar_mensaje(f"Reiniciado con tasa {tasa} y capacidad {capacidad}. "
@@ -981,6 +1338,56 @@ class InterfazSimulador:
         else:
             self.simulador.pausar()
             self.mostrar_mensaje("Simulación en pausa")
+
+    def terminar(self):
+        """
+        Botón "Terminar": acaba la simulación actual y muestra sus
+        estadísticas finales. NO llama a pausar() del Simulador, porque eso
+        metería en la Pila una acción que Deshacer podría revertir: solo
+        detiene el bucle de la interfaz. Después solo queda "Aplicar y reiniciar".
+        """
+        self.cancelar_ciclo()
+        self.iniciado = False
+        self.terminada = True
+        minuto = self.simulador.estado()["minuto"]
+        self.mostrar_mensaje(f"Simulación terminada en el minuto {minuto}. "
+                             'Use "Aplicar y reiniciar" para empezar otra')
+        self.mostrar_estadisticas()
+
+    # ------------------------- ventana de estadísticas -------------------------
+
+    def mostrar_estadisticas(self):
+        """
+        Abre la ventana de estadísticas con los datos finales del Simulador.
+        Si quedara una abierta, primero se cierra, para no tener dos.
+        """
+        self.cerrar_estadisticas()
+        self.ventana_estadisticas = tk.Toplevel(self.ventana)
+        self.ventana_estadisticas.title("Estadísticas de la simulación")
+        self.ventana_estadisticas.resizable(False, False)
+        # transient: la ventana queda siempre por encima de la principal
+        self.ventana_estadisticas.transient(self.ventana)
+        # Si el usuario la cierra con la X, también se olvida la referencia
+        self.ventana_estadisticas.protocol("WM_DELETE_WINDOW", self.cerrar_estadisticas)
+        self.canvas_estadisticas = tk.Canvas(
+            self.ventana_estadisticas, width=ANCHO_ESTADISTICAS,
+            height=ALTO_ESTADISTICAS, highlightthickness=0,
+            bg=COLOR_FONDO_ESTADISTICAS)
+        self.canvas_estadisticas.pack()
+
+        dibujar_estadisticas(self.canvas_estadisticas,
+                             self.simulador.reporte(),
+                             self.simulador.estado()["paradas"],
+                             self.simulador.serie_esperando.mostrar(),
+                             self.simulador.serie_ocupacion.mostrar(),
+                             self.tasa, self.capacidad)
+
+    def cerrar_estadisticas(self):
+        """Cierra la ventana de estadísticas, si está abierta."""
+        if self.ventana_estadisticas is not None:
+            self.ventana_estadisticas.destroy()
+            self.ventana_estadisticas = None
+            self.canvas_estadisticas = None
 
     # --------------------------- bucle automático ---------------------------
 
