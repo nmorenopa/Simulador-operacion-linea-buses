@@ -3,7 +3,7 @@ from typing import Any
 
 class ArregloDinamico:
     capacidadinicial = 1
-    aureo = 1.618  # Factor del código C++
+    aureo = 1.618  # Factor crecimiento del arreglo dinamico
 
     def __init__(self)->None:
         """Crea un arreglo vacío con la capacidad inicial. O(1)."""
