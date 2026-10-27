@@ -56,7 +56,7 @@ ARCHIVOS_SPRITES = {
 NUMERO_BUSES = 5
 CAPACIDAD_BUS = 10
 TASA_LLEGADA = 0.5              # Probabilidad de que llegue un pasajero por parada y minuto
-PROBABILIDAD_PRIORITARIO = 0.2
+PROBABILIDAD_PRIORITARIO = 0.5
 INTENTOS_LLEGADA = 3            # Sorteos por parada y minuto: llegan de 0 a 3 pasajeros
 SEMILLA = 42                   # Con la misma semilla, la simulación se repite igual
 
