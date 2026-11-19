@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- lang="es": le dice al navegador (y a los lectores de pantalla) que el texto está en español -->
+<html lang="es">
+<head>
+    <!-- UTF-8: para que se vean bien las tildes y la ñ -->
+    <meta charset="utf-8">
+    <!-- viewport: hace que la página se adapte al ancho del celular en vez de verse diminuta -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Simulador TransMilenio</title>
+    <!-- Ruta relativa: el servidor entrega web/css/estilos.css -->
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+    <main>
+        <h1>Simulador TransMilenio</h1>
+        <p class="subtitulo">Portal Américas ↔ Portal Norte · Fase 2 – esqueleto</p>
+
+        <!-- Aquí main.js escribe lo que responda la API.
+             aria-live="polite": los lectores de pantalla anuncian el cambio de texto. -->
+        <section id="resultado" aria-live="polite">
+            Consultando la API…
+        </section>
+
+        <button id="boton-consultar" type="button">Volver a consultar</button>
+    </main>
+
+    <!-- type="module": activa los módulos ES (import/export) sin herramientas extra.
+         Un módulo, además, espera a que el HTML termine de cargar antes de ejecutarse,
+         así que ya puede encontrar #resultado y el botón. -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
