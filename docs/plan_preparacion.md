@@ -21,7 +21,7 @@ Portal Américas ↔ Portal Norte, API en FastAPI y web en HTML/CSS/JS plano). S
 | 3 | `legacy/` | Se conserva funcionando | Pillow se instala aparte solo para abrirlo (§1) |
 | 4 | Comando de arranque | **`fastapi dev`** (no importa que instale más cosas) | `requirements.txt` usa `fastapi[standard]`; se agrega un `pyproject.toml` mínimo con el punto de entrada (§2, §3.6) |
 | 5 | Versiones | **Rangos** | Se usa `~=` (ver §2.1) |
-| 6 | Git | Sin esquema de ramas; solo Pull Requests. Nicolás es dueño de `simulador/simulador.py` | §5.3 simplificado |
+| 6 | Git | ~~Solo Pull Requests~~ **Actualizada el 19-nov:** la rama `esqueleto` solo para P1–P6; después todos trabajan directo en `main`, repartidos por archivos. Nicolás es dueño de `simulador/simulador.py` y de los endpoints | §5.3 reescrito |
 | 7 | `.vscode/` | Se ignora | Se agrega a `.gitignore` y se saca del repositorio (§5.1) |
 | 8 | Reparto | Lo define el grupo | El cronograma ya no tiene nombres |
 | 9 | Pruebas de la API | Cuentan dentro de "Pruebas con Pytest (100 % IA)" del registro | Se anotan ahí |
@@ -510,45 +510,40 @@ Una o dos líneas: qué es y para qué curso.
 ## Equipo
 ```
 
-### 5.3 Trabajo con Git: solo Pull Requests (decisión 6)
+### 5.3 Trabajo con Git: todos en `main`, repartidos por archivos (decisión 6, actualizada el 19-nov)
 
-**Idea:** `main` siempre debe funcionar (es lo que se entrega). Nadie sube cambios directo a
-`main`: todo entra por un **Pull Request (PR)**, que es una solicitud en GitHub de "por favor
-une mis cambios a `main`", donde los demás pueden ver qué cambió antes de aceptarlo.
+**Idea:** `main` siempre debe funcionar (es lo que se entrega). Como el equipo es de tres y cada
+uno tiene sus archivos, se trabaja **directo en `main`**. La rama `esqueleto` se usó solo para
+las piezas P1–P6 (que dejaban el proyecto a medias) y se unió a `main` al terminar.
 
-Un PR siempre sale de una rama, pero **no hay esquema de ramas**: la regla es simplemente
-**"una rama por PR, y se borra al unirla"**. El nombre de la rama es libre y corto
-(`heap`, `ruta-datos`, `esqueleto`…).
-
-**Dueños:** `simulador/simulador.py` es de **Nicolás**. Si otro necesita cambiarlo, se lo pide
-o le avisa antes, para no editarlo dos personas a la vez.
+**Reparto (quién toca qué):**
+| Archivos | Quién |
+|---|---|
+| `simulador/simulador.py` y los endpoints de `api/` | Solo **Nicolás** |
+| `estructuras/` | Los tres (cada uno su archivo; avisar antes de tocar `estructuras/__init__.py`) |
+| Todo lo demás (`web/`, `docs/`, configuración) | Nicolás, con ayuda del asistente |
+| `docs/registro_uso_ia.md` | Lo actualiza Nicolás (Santiago y Pablo no lo editan directamente) |
 
 **Rutina (comandos):**
 ```bash
-# 1. Antes de empezar: main actualizado y una rama para este PR
-git checkout main
+# Antes de empezar a programar
 git pull
-git checkout -b heap
 
-# 2. Trabajar y guardar avances
-git add estructuras/heap.py tests/test_heap.py
+# Al terminar
+python -m pytest            # que no se rompa nada
+git add <archivos>          # nombrar los archivos, no usar "git add ."
 git commit -m "Heap: insertar y extraer mínimo con pruebas"
-git push -u origin heap          # la primera vez; luego basta git push
-
-# 3. En GitHub: botón "Compare & pull request" -> heap hacia main -> crear el PR
-#    Revisar que las pruebas pasen, unir ("Merge") y borrar la rama.
-
-# 4. Volver a main actualizado
-git checkout main
-git pull
+git push
 ```
 
 Reglas mínimas:
 1. Nunca `git push --force` sobre `main`.
-2. No se une a `main` nada con pruebas fallando (`python -m pytest` antes de abrir el PR).
+2. No se sube nada con pruebas fallando (`python -m pytest` antes de cada `push`).
 3. Usar `git add <archivos>` en vez de `git add .` para no subir cosas por accidente.
-4. PRs pequeños y cortos (1–2 días). Uno que dura una semana termina en conflictos grandes.
+4. Si `git push` es rechazado porque otro subió algo antes: `git pull` y `git push` de nuevo.
 5. Si aparece un conflicto y no se entiende, **parar y avisar**; resolverlo entre dos.
+6. Para un cambio grande y arriesgado (p. ej. integrar el AVL en el simulador) se puede abrir una
+   rama solo para eso, de forma opcional.
 
 ### 5.4 Actualización de `CLAUDE.md` (aprobada, decisión 10)
 
@@ -614,7 +609,7 @@ Pull Request. Pido su visto bueno antes de cada pieza. **Requisito previo:** hab
 | **P5** | Paso a paso para los compañeros y README | `docs/instalacion.md`, `README.md` |
 | **P6** | Registro de uso de IA y `CLAUDE.md` | `docs/registro_uso_ia.md`, `CLAUDE.md` |
 
-Al final de P6: `pip freeze` para anotar versiones y Pull Request a `main`.
+Al final de P6: `pip freeze` para anotar versiones y unir `esqueleto` a `main`. **Hecho el 19-nov-2026** (unión local con `git merge --no-ff`, porque `gh` no está instalado; la rama se borró después).
 
 ---
 
