@@ -1,0 +1,4 @@
+# Le dice a "fastapi dev" dónde está la aplicación:
+# archivo api/main.py, objeto llamado app.
+[tool.fastapi]
+entrypoint = "api.main:app"
