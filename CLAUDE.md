@@ -5,3 +5,5 @@
 - Trabaja por fases pequeñas y pídeme confirmación antes de pasar a la siguiente.
 - Comenta el código en español, de forma didáctica.
 - Cada vez que escribas o cambies un archivo, anótalo en docs/registro_uso_ia.md (archivo, qué hiciste, fecha).
+
+- Se inicia una nueva fase con varios cambios de alcance e implementación técnica de la app, revisar `docs/contexto_fase2.md`

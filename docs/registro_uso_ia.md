@@ -53,3 +53,13 @@ Según la presentación: *"Cada estructura fue implementada por algún integrant
 - **Qué se hizo:** la IA redactó parte de los docstrings (con la complejidad O() de cada método), comentarios explicativos y anotaciones de tipos como `ruta: ColaCircular`.
 - **Qué hizo el equipo (70 %):** el resto de comentarios y docstrings, y la revisión de que describan correctamente lo que hace el código.
 - **Herramienta usada:** Claude
+
+## 4. Registro de cambios hechos con IA
+
+| Fecha | Archivo | Qué se hizo |
+|---|---|---|
+| 2026-11-05 | `docs/descripcion.md` | Creado. Descripción técnica y conceptual de todo el proyecto (arquitectura, estructuras, simulador, interfaz, pruebas) y lista de diferencias entre el código y la documentación. No se modificó código. |
+| 2026-11-17 | `docs/plan_preparacion.md` | Creado. Plan del Bloque 1 de la Fase 2: estructura de carpetas, dependencias verificadas en la documentación oficial, paso a paso de instalación, esqueleto comentado (sin código), Git, cronograma y preguntas. Luego actualizado con las 12 decisiones del equipo (`fastapi dev`, rangos `~=`, solo Pull Requests, `.vscode/` ignorado, `legacy/` conservado, etc.). No se modificó código. |
+| 2026-11-17 | `docs/preparar_maquina.md` | Creado. Guía para dejar lista la máquina de Nicolás (Windows 10, Python 3.14) antes de crear la arquitectura: guardar documentos en la rama `esqueleto`, recrear `.venv`, medir la línea base (132 pruebas y app Tkinter) y configurar VS Code. No se modificó código. |
+
+| 2026-11-19 | `requirements.txt` | Devuelto a la versión de la Fase 1 (`pytest==9.1.1`, `pillow==12.3.0`) con `git checkout`, porque se había editado por error antes de la pieza P2. Se recreó el `.venv` con Python 3.14.7, se instaló ese archivo y se midió la línea base: 132 pruebas aprobadas. Se creó la rama `esqueleto`. |
