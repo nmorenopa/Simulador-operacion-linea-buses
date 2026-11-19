@@ -1,3 +1,16 @@
+# Archivos que Git debe ignorar (no se suben al repositorio).
+
+# Python: archivos compilados y caché de pytest (se regeneran solos)
 __pycache__/
-.venv/.DS_Store
+*.pyc
+.pytest_cache/
+
+# Entorno virtual (cada quien crea el suyo con: py -3.14 -m venv .venv)
+.venv/
+
+# Configuración personal del editor (decisión 7 del plan)
+.vscode/
+
+# Archivos del sistema operativo (macOS y Windows)
 .DS_Store
+Thumbs.db
