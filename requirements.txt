@@ -1,2 +1,18 @@
-pytest==9.1.1
-pillow==12.3.0
+# Dependencias de la Fase 2 (API en FastAPI + web).
+# Se instalan con:  python -m pip install -r requirements.txt
+#
+# Cómo leer "~=" (versión compatible):
+#   fastapi[standard]~=0.163.1  ->  >= 0.163.1 y < 0.164  (solo arreglos de errores)
+#   pytest~=9.2                 ->  >= 9.2     y < 10
+#   httpx~=0.28.1               ->  >= 0.28.1  y < 0.29   (deja fuera la 1.0, aún de prueba)
+
+# --- API y servidor (capa 3) ---
+# [standard] trae Uvicorn (el servidor), el comando "fastapi dev" y otras utilidades.
+fastapi[standard]~=0.163.1
+
+# --- Pruebas ---
+pytest~=9.2
+httpx~=0.28.1    # TestClient lo necesita; lo dejamos explícito para no depender de [standard]
+
+# Pillow ya NO va aquí: solo lo usa la versión Tkinter de legacy/.
+# Para abrirla:  python -m pip install pillow   y luego   python -m legacy.app
