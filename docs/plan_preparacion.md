@@ -3,7 +3,8 @@
 > **Estado: APROBADO con ajustes (17-nov-2026).** Las respuestas del equipo están en la
 > sección [Decisiones tomadas](#decisiones-tomadas-17-nov-2026) y ya se aplicaron al resto del documento.
 > Antes de ejecutar las piezas, Nicolás prepara su máquina con `docs/preparar_maquina.md`.
-> Fecha: 17 de noviembre de 2026. Entrega: jueves 26 de noviembre de 2026.
+> Fecha: 17 de noviembre de 2026. Entrega: **sábado 28 de noviembre de 2026** (aplazada el
+> 24-nov; antes era el jueves 26).
 > Equipo: Pablo José Cárdenas, Nicolás Moreno Parra y Santiago Rodríguez Ortega.
 
 Este documento propone **cómo dejar el repositorio listo** para la Fase 2 (TransMilenio,
@@ -39,7 +40,7 @@ Portal Américas ↔ Portal Norte, API en FastAPI y web en HTML/CSS/JS plano). S
 3. [Paso a paso para los compañeros](#3-paso-a-paso-para-los-compañeros)
 4. [Esqueleto mínimo (plan comentado, sin código final)](#4-esqueleto-mínimo-plan-comentado)
 5. [Cambios de configuración del repositorio](#5-cambios-de-configuración-del-repositorio)
-6. [Cronograma del 17 al 26 de noviembre](#6-cronograma-del-17-al-26-de-noviembre)
+6. [Cronograma del 17 al 28 de noviembre](#6-cronograma-del-17-al-28-de-noviembre)
 7. [Orden de ejecución de este plan (piezas)](#7-orden-de-ejecución-de-este-plan-piezas)
 8. [Preguntas y decisiones pendientes](#8-preguntas-y-decisiones-pendientes)
 
@@ -560,7 +561,11 @@ Les mostraré el texto nuevo antes de guardarlo.
 
 ---
 
-## 6. Cronograma del 17 al 26 de noviembre
+## 6. Cronograma del 17 al 28 de noviembre
+
+> **Actualización (24-nov-2026):** la entrega se aplazó del jueves 26 al **sábado 28 de
+> noviembre**. La tabla conserva el plan original día por día; cómo se reparten los dos días
+> ganados (congelar funciones, ensayo general) lo decide el equipo.
 
 Supuestos: ~3–4 horas por persona por día. El reparto de tareas lo define el grupo (decisión 8);
 la columna "Quién" solo distingue lo que hace el equipo de lo que guía el asistente.
@@ -577,7 +582,7 @@ la columna "Quién" solo distingue lo que hace el equipo de lo que guía el asis
 | Lun | 24-nov | — | **Congelar funciones.** Solo arreglos de errores desde aquí | Equipo | `main` estable |
 | Lun–Mar | 24–25 nov | 6 | Documentación, `registro_uso_ia.md`, video ≤ 5 min, ensayo de sustentación | Equipo | Video grabado; cada uno explica su estructura sin leer |
 | Mié | 25-nov | 6 | Ensayo general y revisión final del repositorio | Equipo | Lista de entregables completa |
-| **Jue** | **26-nov** | — | **Entrega** | — | — |
+| **Sáb** | **28-nov** | — | **Entrega** (aplazada; antes era el jueves 26-nov) | — | — |
 
 **Puntos de control** (si no se cumplen, se aplica el siguiente recorte):
 - **Mié 19-nov noche:** los 3 con el entorno funcionando y la ruta en `datos/`.
