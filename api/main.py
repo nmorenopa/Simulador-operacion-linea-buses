@@ -6,9 +6,10 @@ del Simulador y devuelve su resultado como JSON. Aquí nunca va lógica de
 negocio (si aparece un "if" sobre buses o pasajeros, está en el lugar
 equivocado: eso pertenece a simulador/).
 
-Por ahora es un esqueleto: solo tiene el endpoint /api/salud para comprobar
-que el navegador, el servidor y Python están conectados. El Simulador se
-conecta en el Bloque 4.
+Endpoints actuales:
+    GET /api/salud    -> comprueba que navegador, servidor y Python se hablan.
+    GET /api/estado   -> Simulador.estado()   (foto del momento, para dibujar)
+    GET /api/reporte  -> Simulador.reporte()  (resumen con promedios)
 
 Cómo arrancarla (desde la raíz del proyecto, con el .venv activo):
     fastapi dev
@@ -28,6 +29,10 @@ from fastapi import FastAPI
 
 # StaticFiles: sirve archivos "tal cual" (html, css, js, imágenes).
 from fastapi.staticfiles import StaticFiles
+
+# Simulador: la capa 2. La API (capa 3) solo conoce la capa de abajo; nunca
+# importa nada de estructuras/ directamente.
+from simulador.simulador import Simulador
 
 
 # --- 2. Ubicación de la carpeta web/ ----------------------------------------
@@ -51,7 +56,37 @@ app = FastAPI(
 )
 
 
-# --- 4. Endpoints (SIEMPRE antes del mount del paso 5) ----------------------
+# --- 4. El único Simulador en memoria ---------------------------------------
+
+# Por ahora usamos los mismos valores que la versión Tkinter (legacy/app.py),
+# con 8 paradas genéricas. Cuando el Simulador se adapte a las estaciones
+# reales (Bloque 2), lo único que cambia en la API es esta parte.
+NUMERO_PARADAS = 8
+NUMERO_BUSES = 5
+CAPACIDAD_BUS = 10
+TASA_LLEGADA = 0.5              # probabilidad de que llegue un pasajero en cada sorteo
+PROBABILIDAD_PRIORITARIO = 0.5
+INTENTOS_LLEGADA = 3            # sorteos por parada y minuto: llegan de 0 a 3 pasajeros
+SEMILLA = 42                    # con la misma semilla, la simulación se repite igual
+
+# Esta variable se crea UNA sola vez, cuando el servidor carga este archivo, y
+# todas las peticiones de todos los navegadores usan el mismo objeto. Por eso
+# el estado se conserva entre una petición y la siguiente: es "el" simulador.
+#
+# Ojo: vive en la memoria del servidor. Si el servidor se reinicia (con
+# "fastapi dev" pasa cada vez que se guarda un archivo), vuelve al minuto 0.
+simulador = Simulador(
+    numero_paradas=NUMERO_PARADAS,
+    numero_buses=NUMERO_BUSES,
+    capacidad_bus=CAPACIDAD_BUS,
+    tasa_llegada=TASA_LLEGADA,
+    probabilidad_prioritario=PROBABILIDAD_PRIORITARIO,
+    semilla=SEMILLA,
+    intentos_llegada=INTENTOS_LLEGADA,
+)
+
+
+# --- 5. Endpoints (SIEMPRE antes del mount del paso 6) ----------------------
 
 # El decorador @app.get(...) significa: "cuando llegue una petición GET a
 # /api/salud, ejecuta la función de abajo".
@@ -69,7 +104,32 @@ def salud():
     }
 
 
-# --- 5. Servir la página web (SIEMPRE AL FINAL) -----------------------------
+# Fíjate en la forma de los dos endpoints siguientes: UNA línea que llama a un
+# método del Simulador y devuelve su resultado. Esa es la regla de la API: si
+# aquí apareciera un cálculo o un "if" sobre buses, iría en simulador/.
+#
+# Son GET porque solo CONSULTAN: pedirlos mil veces no cambia la simulación
+# (la prueba test_consultar_no_cambia_nada lo comprueba).
+
+@app.get("/api/estado")
+def ver_estado():
+    """
+    Foto del momento: minuto, pausa, paradas, buses, eventos del último minuto
+    e historial. Es lo que la web usa para dibujar. O(P + B).
+    """
+    return simulador.estado()
+
+
+@app.get("/api/reporte")
+def ver_reporte():
+    """
+    Resumen de lo ocurrido: pasajeros generados, abordados y esperando,
+    espera promedio y ocupación promedio. O(P + T).
+    """
+    return simulador.reporte()
+
+
+# --- 6. Servir la página web (SIEMPRE AL FINAL) -----------------------------
 
 # app.mount conecta una "sub-aplicación" completa en una ruta. Aquí, todo lo
 # que está en web/ queda disponible desde "/":
