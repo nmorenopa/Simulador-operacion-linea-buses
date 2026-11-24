@@ -1,5 +1,5 @@
 """
-Pruebas del esqueleto de la API (capa 3).
+Pruebas de la API (capa 3).
 
 TestClient simula un navegador: hace peticiones a la app SIN arrancar el
 servidor, así que estas pruebas corren con un simple "python -m pytest".
@@ -99,3 +99,104 @@ def test_consultar_no_cambia_nada():
     segunda = client.get("/api/estado").json()
 
     assert primera == segunda
+
+
+# --- Pieza A2: dar órdenes al Simulador (POST) -------------------------------
+# Todas las pruebas comparten el MISMO simulador (el de api/main.py). Por eso:
+#   1. Ninguna supone que empieza en el minuto 0: miden "antes" y "después".
+#   2. Cada una deja el simulador como lo encontró (si pausa, reanuda al final).
+#   3. Las de deshacer solo confían en la acción que ELLAS acaban de apilar,
+#      que es la que queda en el tope de la Pila.
+
+def test_avanzar_suma_un_minuto():
+    """POST /api/avanzar mueve el reloj un minuto y devuelve el estado nuevo."""
+    antes = client.get("/api/estado").json()["minuto"]
+
+    respuesta = client.post("/api/avanzar")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["minuto"] == antes + 1
+    # Lo que devuelve es exactamente el estado del Simulador después del tick
+    assert respuesta.json() == simulador.estado()
+
+
+def test_pausar_detiene_el_reloj():
+    """Con la simulación en pausa, avanzar no cambia el minuto."""
+    respuesta = client.post("/api/pausar")
+    assert respuesta.status_code == 200
+    assert respuesta.json()["en_pausa"] is True
+
+    minuto_en_pausa = respuesta.json()["minuto"]
+    despues = client.post("/api/avanzar").json()
+    assert despues["minuto"] == minuto_en_pausa
+
+    client.post("/api/reanudar")   # se deja como estaba, para las demás pruebas
+
+
+def test_reanudar_vuelve_a_mover_el_reloj():
+    """Después de pausar y reanudar, avanzar vuelve a sumar un minuto."""
+    client.post("/api/pausar")
+
+    respuesta = client.post("/api/reanudar")
+    assert respuesta.status_code == 200
+    assert respuesta.json()["en_pausa"] is False
+
+    antes = respuesta.json()["minuto"]
+    assert client.post("/api/avanzar").json()["minuto"] == antes + 1
+
+
+def test_agregar_bus_suma_un_bus():
+    """POST /api/agregar-bus devuelve el estado (no el Bus) con un bus más."""
+    antes = len(client.get("/api/estado").json()["buses"])
+
+    respuesta = client.post("/api/agregar-bus")
+
+    assert respuesta.status_code == 200
+    assert len(respuesta.json()["buses"]) == antes + 1
+
+    client.post("/api/deshacer")   # se quita el bus, para las demás pruebas
+
+
+def test_deshacer_quita_el_bus_agregado():
+    """
+    Agregar un bus y deshacer SEGUIDOS (sin avanzar en medio, así el bus nuevo
+    no alcanza a subir pasajeros) deja la flota como estaba.
+    """
+    antes = len(client.get("/api/estado").json()["buses"])
+    client.post("/api/agregar-bus")
+
+    respuesta = client.post("/api/deshacer")
+
+    assert respuesta.status_code == 200
+    assert set(respuesta.json()) == {"mensaje", "estado"}
+    assert respuesta.json()["mensaje"] == "Se quitó el último bus agregado"
+    assert len(respuesta.json()["estado"]["buses"]) == antes
+
+
+def test_deshacer_devuelve_el_mensaje_del_simulador():
+    """
+    El mensaje no lo arma la API: es el texto que devuelve Simulador.deshacer().
+    Deshacer una pausa reanuda la simulación y lo dice.
+    """
+    client.post("/api/pausar")
+
+    respuesta = client.post("/api/deshacer").json()
+
+    assert respuesta["mensaje"] == "Se reanudó la simulación"
+    assert respuesta["estado"]["en_pausa"] is False
+
+
+def test_get_a_una_ruta_post_no_hace_nada():
+    """
+    La barra del navegador siempre pide con GET. Como /api/avanzar solo acepta
+    POST, la petición la termina atendiendo la web montada en "/", que busca un
+    archivo "api/avanzar", no lo encuentra y responde 404. Lo importante: un
+    GET nunca ejecuta la acción (el reloj no se mueve). Por eso los POST se
+    prueban en /docs.
+    """
+    antes = client.get("/api/estado").json()["minuto"]
+
+    respuesta = client.get("/api/avanzar")
+
+    assert respuesta.status_code == 404
+    assert client.get("/api/estado").json()["minuto"] == antes

@@ -7,9 +7,14 @@ negocio (si aparece un "if" sobre buses o pasajeros, está en el lugar
 equivocado: eso pertenece a simulador/).
 
 Endpoints actuales:
-    GET /api/salud    -> comprueba que navegador, servidor y Python se hablan.
-    GET /api/estado   -> Simulador.estado()   (foto del momento, para dibujar)
-    GET /api/reporte  -> Simulador.reporte()  (resumen con promedios)
+    GET  /api/salud        -> comprueba que navegador, servidor y Python se hablan.
+    GET  /api/estado       -> Simulador.estado()   (foto del momento, para dibujar)
+    GET  /api/reporte      -> Simulador.reporte()  (resumen con promedios)
+    POST /api/avanzar      -> Simulador.avanzar_tick()  y devuelve el estado
+    POST /api/pausar       -> Simulador.pausar()        y devuelve el estado
+    POST /api/reanudar     -> Simulador.reanudar()      y devuelve el estado
+    POST /api/agregar-bus  -> Simulador.agregar_bus()   y devuelve el estado
+    POST /api/deshacer     -> Simulador.deshacer()      y devuelve mensaje + estado
 
 Cómo arrancarla (desde la raíz del proyecto, con el .venv activo):
     fastapi dev
@@ -20,6 +25,10 @@ Cómo arrancarla (desde la raíz del proyecto, con el .venv activo):
 # platform: módulo estándar de Python. Lo usamos solo para devolver la versión
 # de Python que corre el servidor (un dato real, no inventado).
 import platform
+
+# threading: módulo estándar de Python para trabajar con hilos. De aquí sale
+# el candado (Lock) que hace que las peticiones usen el Simulador de a una.
+import threading
 
 # Path: para armar rutas de carpetas sin preocuparnos por "/" o "\".
 from pathlib import Path
@@ -85,13 +94,21 @@ simulador = Simulador(
     intentos_llegada=INTENTOS_LLEGADA,
 )
 
+# El candado: como la llave del baño de una tienda. FastAPI atiende las
+# funciones "def" con un grupo de hilos (threadpool), así que dos peticiones
+# pueden estar dentro de la API al mismo tiempo. Cada endpoint que toca el
+# Simulador lo hace dentro de "with candado:": toma la llave al entrar y la
+# devuelve al salir (aunque haya un return o un error en medio). Si la llave
+# está ocupada, la otra petición espera su turno.
+#
+# Ojo: dentro de un "with candado:" nunca se llama a otro endpoint (por ejemplo
+# ver_estado()), porque ese también pide la llave y el hilo se quedaría
+# esperando para siempre una llave que él mismo tiene.
+candado = threading.Lock()
+
 
 # --- 5. Endpoints (SIEMPRE antes del mount del paso 6) ----------------------
 
-# El decorador @app.get(...) significa: "cuando llegue una petición GET a
-# /api/salud, ejecuta la función de abajo".
-# GET = "dame información" (no cambia nada en el servidor).
-# El prefijo /api/ separa las direcciones de la API de las de la página.
 @app.get("/api/salud")
 def salud():
     """Comprueba que la API está viva. Complejidad: O(1)."""
@@ -104,12 +121,10 @@ def salud():
     }
 
 
-# Fíjate en la forma de los dos endpoints siguientes: UNA línea que llama a un
-# método del Simulador y devuelve su resultado. Esa es la regla de la API: si
-# aquí apareciera un cálculo o un "if" sobre buses, iría en simulador/.
-#
-# Son GET porque solo CONSULTAN: pedirlos mil veces no cambia la simulación
-# (la prueba test_consultar_no_cambia_nada lo comprueba).
+# --- Endpoints GET: solo CONSULTAN ---
+# Pedirlos mil veces no cambia la simulación (lo comprueba la prueba
+# test_consultar_no_cambia_nada). Igual usan el candado, para no leer una
+# "foto a medias" mientras otra petición está avanzando el reloj.
 
 @app.get("/api/estado")
 def ver_estado():
@@ -117,7 +132,8 @@ def ver_estado():
     Foto del momento: minuto, pausa, paradas, buses, eventos del último minuto
     e historial. Es lo que la web usa para dibujar. O(P + B).
     """
-    return simulador.estado()
+    with candado:
+        return simulador.estado()
 
 
 @app.get("/api/reporte")
@@ -126,7 +142,75 @@ def ver_reporte():
     Resumen de lo ocurrido: pasajeros generados, abordados y esperando,
     espera promedio y ocupación promedio. O(P + T).
     """
-    return simulador.reporte()
+    with candado:
+        return simulador.reporte()
+
+
+# --- Endpoints POST: CAMBIAN la simulación ---
+# Todos siguen el mismo molde: tomar el candado, llamar a UN método del
+# Simulador y devolver el estado nuevo, para que la web se redibuje con una
+# sola petición. Desde la barra del navegador no se pueden probar: la barra
+# siempre pide con GET, y como estas rutas solo aceptan POST, esa petición la
+# termina atendiendo la web montada en "/", que responde 404 sin ejecutar
+# nada (lo comprueba test_get_a_una_ruta_post_no_hace_nada). Se prueban en /docs.
+
+@app.post("/api/avanzar")
+def avanzar():
+    """
+    Simula un minuto (si está en pausa, no pasa nada) y devuelve el estado.
+    Es el "reloj": la web lo llama una y otra vez. Cuesta lo que cueste
+    avanzar_tick() (ver su docstring en simulador.py) más O(P + B) del estado.
+    """
+    with candado:
+        simulador.avanzar_tick()
+        return simulador.estado()
+
+
+@app.post("/api/pausar")
+def pausar():
+    """Detiene la simulación y devuelve el estado. O(1) + O(P + B) del estado."""
+    with candado:
+        simulador.pausar()
+        return simulador.estado()
+
+
+@app.post("/api/reanudar")
+def reanudar():
+    """Reanuda la simulación y devuelve el estado. O(1) + O(P + B) del estado."""
+    with candado:
+        simulador.reanudar()
+        return simulador.estado()
+
+
+@app.post("/api/agregar-bus")
+def agregar_bus():
+    """
+    Agrega un bus (arranca en la parada más llena) y devuelve el estado.
+    No se devuelve el Bus que retorna agregar_bus(): su ColaCircular es un
+    ciclo de nodos y el conversor a JSON daría vueltas sin fin (RecursionError).
+    O(P + B).
+    """
+    with candado:
+        simulador.agregar_bus()
+        return simulador.estado()
+
+
+@app.post("/api/deshacer")
+def deshacer():
+    """
+    Deshace la última acción del operador. Devuelve el mensaje que da el
+    Simulador (None, que llega a la web como null, si no había nada que
+    deshacer) y el estado. O(1) + O(P + B) del estado.
+    """
+    with candado:
+        # El texto lo decide el Simulador (también cuando se niega, por
+        # ejemplo si el último bus agregado lleva pasajeros): la API solo lo
+        # guarda en una variable y lo entrega tal cual.
+        mensaje = simulador.deshacer()
+        return {
+            "mensaje": mensaje,
+            "estado": simulador.estado(),
+        }
 
 
 # --- 6. Servir la página web (SIEMPRE AL FINAL) -----------------------------
