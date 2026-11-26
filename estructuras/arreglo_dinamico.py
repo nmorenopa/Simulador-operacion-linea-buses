@@ -11,11 +11,11 @@ class ArregloDinamico:
         self.datos = [None] * self.capacidad
         self.n: int = 0
 
-    def longitud(self)->int:
+    def tamano(self)->int:
         """O(1) - Solo retorna una variable."""
         return self.n
 
-    def vacio(self)-> bool:
+    def esta_vacio(self)-> bool:
         """O(1) - Solo compara una variable."""
         return self.n == 0
 
@@ -99,7 +99,7 @@ class ArregloDinamico:
 
     def borraralfinal(self)-> Any:
         """O(1) CONSTANTE: Simplemente bajamos el contador 'N' y limpiamos el dato."""
-        if self.vacio():
+        if self.esta_vacio():
             raise IndexError("El arreglo esta vacio")
         borrar = self.datos[self.n - 1]
         self.datos[self.n - 1] = None

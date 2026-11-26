@@ -1,3 +1,5 @@
+from typing import Any
+
 
 class NodoAVL:
     """
@@ -11,31 +13,36 @@ class NodoAVL:
         altura: altura del nodo.
     """
 
-    def __init__(self, clave, valor):
+    def __init__(self, clave: Any, valor: Any) -> None:
+        """Crea una hoja: sin hijos y con altura 1. O(1)."""
         self.clave = clave
         self.valor = valor
-        self.izquierdo = None
-        self.derecho = None
-        self.altura = 1  
+        self.izquierdo: NodoAVL | None = None
+        self.derecho: NodoAVL | None = None
+        self.altura = 1
 
 
 class ArbolAVL:
     """
     Árbol binario de búsqueda autoequilibrado (AVL).
     Las claves deben ser comparables entre sí.
+
+    En cada nodo, la altura de sus dos subárboles difiere a lo más en 1; por
+    eso la altura total es O(log n) y buscar o insertar también lo son.
     """
 
-    def __init__(self):
-        self.raiz = None
-        self.tamano = 0
+    def __init__(self) -> None:
+        """Crea un árbol vacío. O(1)."""
+        self.raiz: NodoAVL | None = None
+        self._tamano = 0      # Contador interno: evita recorrer el árbol para medir
 
     # --------------------------------------------------
     # MÉTODOS AUXILIARES
     # --------------------------------------------------
 
-    def _altura(self, nodo):
+    def _altura(self, nodo: NodoAVL | None) -> int:
         """
-        Obtiene la altura de un nodo.
+        Obtiene la altura de un nodo (0 si el nodo no existe).
         Complejidad: O(1).
         """
         if nodo is None:
@@ -43,7 +50,7 @@ class ArbolAVL:
 
         return nodo.altura
 
-    def _actualizar_altura(self, nodo):
+    def _actualizar_altura(self, nodo: NodoAVL) -> None:
         """
         Actualiza la altura de un nodo según sus hijos.
         Complejidad: O(1).
@@ -53,9 +60,10 @@ class ArbolAVL:
             self._altura(nodo.derecho)
         )
 
-    def _factor_balance(self, nodo):
+    def _factor_balance(self, nodo: NodoAVL | None) -> int:
         """
-        Calcula el factor de balance de un nodo.
+        Calcula el factor de balance de un nodo: altura izquierda - altura derecha.
+        Mayor que 1: cargado a la izquierda. Menor que -1: cargado a la derecha.
         Complejidad: O(1).
         """
         if nodo is None:
@@ -70,9 +78,15 @@ class ArbolAVL:
     # ROTACIONES
     # --------------------------------------------------
 
-    def _rotacion_derecha(self, y):
+    def _rotacion_derecha(self, y: NodoAVL) -> NodoAVL:
         """
-        Realiza una rotación simple hacia la derecha.
+        Realiza una rotación simple hacia la derecha y devuelve la nueva raíz
+        del subárbol.
+                y              x
+               / \\           / \\
+              x   C   --->   A   y
+             / \\               / \\
+            A   B              B   C
         Complejidad: O(1).
         """
         x = y.izquierdo
@@ -90,9 +104,10 @@ class ArbolAVL:
 
         return x
 
-    def _rotacion_izquierda(self, x):
+    def _rotacion_izquierda(self, x: NodoAVL) -> NodoAVL:
         """
-        Realiza una rotación simple hacia la izquierda.
+        Realiza una rotación simple hacia la izquierda (espejo de la derecha)
+        y devuelve la nueva raíz del subárbol.
         Complejidad: O(1).
         """
         y = x.derecho
@@ -114,13 +129,16 @@ class ArbolAVL:
     # INSERCIÓN Y BALANCEO
     # --------------------------------------------------
 
-    def _insertar(self, nodo, clave, valor):
+    def _insertar(self, nodo: NodoAVL | None, clave: Any, valor: Any) -> NodoAVL:
         """
         Inserta una clave recursivamente y equilibra el árbol.
+        Devuelve la raíz (quizá nueva, tras rotar) del subárbol.
         Complejidad: O(log n), por tratarse de un AVL.
         """
-        # Caso base: posición disponible
+        # Caso base: posición disponible. Solo aquí nace un nodo nuevo, así que
+        # es el único lugar donde crece el tamaño.
         if nodo is None:
+            self._tamano += 1
             return NodoAVL(clave, valor)
 
         # Buscar la posición correspondiente
@@ -135,7 +153,7 @@ class ArbolAVL:
             )
 
         else:
-            # Si la clave existe, actualizar su valor
+            # Si la clave existe, actualizar su valor (el árbol no cambia de forma)
             nodo.valor = valor
             return nodo
 
@@ -144,6 +162,9 @@ class ArbolAVL:
 
         # Calcular balance
         balance = self._factor_balance(nodo)
+
+        # Para saber cuál de los 4 casos es, se mira hacia qué lado del hijo
+        # bajó la clave recién insertada.
 
         # CASO 1: Izquierda - Izquierda (II)
         if balance > 1 and clave < nodo.izquierdo.clave:
@@ -169,55 +190,113 @@ class ArbolAVL:
 
         return nodo
 
-    def insertar(self, clave, valor):
+    def insertar(self, clave: Any, valor: Any) -> None:
         """
         Inserta una clave y su valor asociado.
-        Si la clave ya existe, actualiza su valor.
+        Si la clave ya existe, actualiza su valor (el tamaño no cambia).
         Complejidad: O(log n).
         """
-        existente = self.buscar(clave)
-
-        if existente is None:
-            self.tamano += 1
-
         self.raiz = self._insertar(self.raiz, clave, valor)
 
     # --------------------------------------------------
     # BÚSQUEDA
     # --------------------------------------------------
 
-    def _buscar(self, nodo, clave):
+    def _buscar_nodo(self, clave: Any) -> NodoAVL | None:
         """
-        Busca una clave desde un nodo determinado.
+        Baja desde la raíz eligiendo izquierda o derecha y devuelve el NODO con
+        esa clave, o None si no está. Devolver el nodo (y no el valor) permite
+        distinguir "no existe" de "existe y su valor es None".
         Complejidad: O(log n) en un AVL.
         """
-        if nodo is None:
-            return None
+        nodo = self.raiz
+        while nodo is not None:
+            if clave == nodo.clave:
+                return nodo
+            if clave < nodo.clave:
+                nodo = nodo.izquierdo
+            else:
+                nodo = nodo.derecho
+        return None
 
-        if clave == nodo.clave:
-            return nodo.valor
-
-        if clave < nodo.clave:
-            return self._buscar(nodo.izquierdo, clave)
-
-        return self._buscar(nodo.derecho, clave)
-
-    def buscar(self, clave):
+    def buscar(self, clave: Any) -> Any:
         """
         Busca una clave y devuelve su valor asociado.
-        Devuelve None si no existe.
+        Devuelve None si no existe (si el valor guardado puede ser None,
+        usar contiene() para saber si la clave está).
         Complejidad: O(log n).
         """
-        return self._buscar(self.raiz, clave)
+        nodo = self._buscar_nodo(clave)
+        return None if nodo is None else nodo.valor
 
+    def contiene(self, clave: Any) -> bool:
+        """
+        True si la clave está en el árbol.
+        Complejidad: O(log n).
+        """
+        return self._buscar_nodo(clave) is not None
+
+    # --------------------------------------------------
+    # CONSULTAS POR ORDEN
+    # --------------------------------------------------
+
+    def _rango(self, nodo: NodoAVL | None, desde: Any, hasta: Any, resultado: list) -> None:
+        """
+        Recorrido en orden que se salta las ramas que no pueden tener claves
+        dentro de [desde, hasta]: si la clave del nodo ya es menor o igual a
+        'desde', a su izquierda todo es más pequeño y no hace falta bajar.
+        Complejidad: O(log n + k), donde k es la cantidad de claves halladas.
+        """
+        if nodo is None:
+            return
+
+        if desde < nodo.clave:
+            self._rango(nodo.izquierdo, desde, hasta, resultado)
+
+        if desde <= nodo.clave <= hasta:
+            resultado.append((nodo.clave, nodo.valor))
+
+        if nodo.clave < hasta:
+            self._rango(nodo.derecho, desde, hasta, resultado)
+
+    def rango(self, desde: Any, hasta: Any) -> list:
+        """
+        Devuelve, ordenadas por clave, las parejas (clave, valor) con
+        desde <= clave <= hasta (incluye los dos extremos).
+        Si desde > hasta, devuelve una lista vacía.
+        Ejemplo: estaciones entre el metro 2000 y el 5000.
+        Complejidad: O(log n + k), donde k es la cantidad de claves halladas.
+        """
+        resultado = []
+        self._rango(self.raiz, desde, hasta, resultado)
+        return resultado
+
+    def piso(self, clave: Any) -> tuple | None:
+        """
+        "Piso" de una clave: la pareja (clave, valor) con la MAYOR clave que sea
+        menor o igual a la pedida, o None si todas son mayores.
+        Ejemplo: la última estación en o antes del metro 3500.
+        Idea: si el nodo sirve (clave <= pedida), se guarda como candidato y se
+        busca uno mejor (más grande) a la derecha; si no sirve, se va a la izquierda.
+        Complejidad: O(log n).
+        """
+        mejor = None
+        nodo = self.raiz
+        while nodo is not None:
+            if nodo.clave <= clave:
+                mejor = nodo
+                nodo = nodo.derecho
+            else:
+                nodo = nodo.izquierdo
+        return None if mejor is None else (mejor.clave, mejor.valor)
 
     # --------------------------------------------------
     # RECORRIDO EN ORDEN
     # --------------------------------------------------
 
-    def _en_orden(self, nodo, resultado):
+    def _en_orden(self, nodo: NodoAVL | None, resultado: list) -> None:
         """
-        Recorre el árbol en orden ascendente.
+        Recorre el árbol en orden ascendente (izquierda, nodo, derecha).
         Complejidad: O(n).
         """
         if nodo is None:
@@ -227,24 +306,26 @@ class ArbolAVL:
         resultado.append((nodo.clave, nodo.valor))
         self._en_orden(nodo.derecho, resultado)
 
-    def en_orden(self):
+    def en_orden(self) -> list:
         """
-        Devuelve todos los elementos ordenados por clave.
+        Devuelve todas las parejas (clave, valor) ordenadas por clave.
+        Si el árbol está vacío, devuelve una lista vacía.
         Complejidad: O(n).
         """
         resultado = []
         self._en_orden(self.raiz, resultado)
 
-        return resultado if resultado else None
+        return resultado
 
     # --------------------------------------------------
     # VERIFICACIÓN DEL BALANCE
     # --------------------------------------------------
 
-    def _verificar_balance(self, nodo):
+    def _verificar_balance(self, nodo: NodoAVL | None) -> tuple:
         """
         Comprueba que todos los nodos estén balanceados
         y que sus alturas sean correctas.
+        Devuelve (está_balanceado, altura_real).
         Complejidad: O(n).
         """
         if nodo is None:
@@ -269,7 +350,7 @@ class ArbolAVL:
 
         return esta_balanceado, altura_real
 
-    def verificar_balance(self):
+    def verificar_balance(self) -> bool:
         """
         Comprueba si todo el árbol cumple las condiciones AVL.
         Complejidad: O(n).
@@ -280,21 +361,21 @@ class ArbolAVL:
     # INFORMACIÓN GENERAL
     # --------------------------------------------------
 
-    def altura(self):
+    def altura(self) -> int:
         """
         Devuelve la altura total del árbol.
         Complejidad: O(1).
         """
         return self._altura(self.raiz)
 
-    def __len__(self):
+    def tamano(self) -> int:
         """
         Devuelve la cantidad de elementos almacenados.
         Complejidad: O(1).
         """
-        return self.tamano
+        return self._tamano
 
-    def esta_vacio(self):
+    def esta_vacio(self) -> bool:
         """
         Comprueba si el árbol está vacío.
         Complejidad: O(1).

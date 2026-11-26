@@ -180,7 +180,7 @@ tamaño sea O(1) sin recorrer la lista. Las operaciones sobre estructuras vacía
 
   Esto es válido porque en el único lugar donde se borra en medio (pasajeros a bordo de un bus) el orden
   no importa.
-- **Operaciones:** `longitud`, `vacio`, `posicion`, `cambiarposicion` (O(1));
+- **Operaciones:** `tamano`, `esta_vacio`, `posicion`, `cambiarposicion` (O(1));
   `contiene`, `buscar`, `contar`, `mostrar` (O(n)); `agrandar` (O(n));
   `agregaralfinal` (O(1) amortizado); `insertar`, `borrarposicion`, `borraralfinal` (O(1)).
 - `mostrar()` devuelve una **copia** en una lista de Python; así la interfaz puede leer los datos sin
@@ -189,14 +189,14 @@ tamaño sea O(1) sin recorrer la lista. Las operaciones sobre estructuras vacía
 ### 5.3 `Pila` (`pila.py`) — LIFO
 
 - **Concepto:** el último en entrar es el primero en salir. Solo se guarda el `tope`.
-- **Operaciones (todas O(1) salvo `mostrar`):** `apilar`, `desapilar`, `ver_tope`, `esta_vacia`,
-  `longitud`; `mostrar` imprime de tope a fondo (O(n)).
+- **Operaciones (todas O(1) salvo `mostrar`):** `apilar`, `desapilar`, `ver_tope`, `esta_vacio`,
+  `tamano`; `mostrar` imprime de tope a fondo (O(n)).
 
 ### 5.4 `Cola` (`cola.py`) — FIFO
 
 - **Concepto:** se agrega por el `final` y se saca por el `frente`. Guardar los dos extremos hace que
   agregar y sacar sean O(1).
-- **Operaciones:** `agregar`, `borrar`, `ver_frente`, `esta_vacia`, `longitud` (O(1)); `mostrar` (O(n)).
+- **Operaciones:** `agregar`, `borrar`, `ver_frente`, `esta_vacio`, `tamano` (O(1)); `mostrar` (O(n)).
 - Al sacar el último elemento también se reinicia `final = None`, para no dejar una referencia colgante.
 
 ### 5.5 `ColaCircular` (`cola_circular.py`)
@@ -206,7 +206,7 @@ tamaño sea O(1) sin recorrer la lista. Las operaciones sobre estructuras vacía
 - **Operación característica — `siguiente()` (rotar):** la cabeza pasa a ser el último y la cabeza
   avanza un nodo. **No crea ni borra nodos**, solo mueve dos referencias: O(1). Así se recorre una
   secuencia **infinitamente** sin reconstruirla.
-- **Operaciones:** `encolar`, `desencolar`, `frente`, `siguiente`, `tamano`, `esta_vacia` (todas O(1)).
+- **Operaciones:** `encolar`, `desencolar`, `frente`, `siguiente`, `tamano`, `esta_vacio` (todas O(1)).
 
 ### 5.6 `ColaPrioridad` (`cola_prioridad.py`)
 
@@ -220,7 +220,7 @@ tamaño sea O(1) sin recorrer la lista. Las operaciones sobre estructuras vacía
     prioridad (y si falla no deja rastro).
   - `desencolar()` y `frente()`: buscan el primer nivel no vacío → **O(k)**, con k = número de niveles.
     Como en el proyecto k = 2 y es fijo, en la práctica es O(1).
-  - `tamano`, `esta_vacia` (O(1)).
+  - `tamano`, `esta_vacio` (O(1)).
 - **Por qué no un *heap*:** con pocos niveles fijos, el arreglo de colas es más simple de explicar,
   garantiza estabilidad (FIFO dentro de cada nivel) de forma natural y encolar es O(1) en vez de O(log n).
 

@@ -29,24 +29,24 @@ class Monticulo:
         """True si es de máximos: padre mayor o igual a sus hijos (p >= h). O(1)."""
         return not self._es_min
 
-    def longitud(self) -> int:
+    def tamano(self) -> int:
         """Cantidad de elementos. O(1)."""
-        return self.elementos.longitud()
+        return self.elementos.tamano()
 
-    def vacio(self) -> bool:
+    def esta_vacio(self) -> bool:
         """True si no tiene elementos. O(1)."""
-        return self.elementos.vacio()
+        return self.elementos.esta_vacio()
 
     def ver_raiz(self) -> Any:
         """Devuelve la raíz sin sacarla (mínimo o máximo según el tipo). O(1)."""
-        if self.vacio():
+        if self.esta_vacio():
             raise IndexError("El montículo no tiene elementos")
         return self.elementos.posicion(0)
 
     def insertar(self, elemento: Any) -> None:
         """Inserta un elemento y restaura la propiedad del montículo. O(log n)."""
         self.elementos.agregaralfinal(elemento)
-        self._subir(self.elementos.longitud() - 1)
+        self._subir(self.elementos.tamano() - 1)
 
     def extraer_raiz(self) -> Any:
         """
@@ -54,12 +54,12 @@ class Monticulo:
           - de mínimos: devuelve el mínimo
           - de máximos: devuelve el máximo
         """
-        if self.vacio():
+        if self.esta_vacio():
             raise IndexError("El montículo no tiene elementos")
         raiz = self.elementos.posicion(0)
         # El último elemento tapa el hueco de la raíz y luego se hunde a su lugar
         ultimo = self.elementos.borraralfinal()
-        if not self.vacio():
+        if not self.esta_vacio():
             self.elementos.cambiarposicion(0, ultimo)
             self._hundir(0)
         return raiz
@@ -98,7 +98,7 @@ class Monticulo:
         mínimos, el mayor en uno de máximos) y, si va antes que el dato, lo sube.
         También usa la técnica del "hueco" (ver _subir).
         """
-        n = self.elementos.longitud()
+        n = self.elementos.tamano()
         dato = self.elementos.posicion(i)
         while True:
             izq = self._hijo_izquierdo(i)

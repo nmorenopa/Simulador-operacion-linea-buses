@@ -32,7 +32,7 @@ class Bus:
         """
         if capacidad_maxima <= 0:
             raise ValueError("La capacidad debe ser mayor que 0")
-        if ruta.esta_vacia():
+        if ruta.esta_vacio():
             raise ValueError("La ruta no puede estar vacía")
 
         self.id = id
@@ -44,15 +44,15 @@ class Bus:
 
     def cantidad_pasajeros(self)->int:
         """Devuelve cuántos pasajeros van a bordo. O(1)."""
-        return self.pasajeros.longitud()
+        return self.pasajeros.tamano()
 
     def cupos_libres(self)-> int:
         """Devuelve cuántos pasajeros más caben. O(1)."""
-        return self.capacidad_maxima - self.pasajeros.longitud()
+        return self.capacidad_maxima - self.pasajeros.tamano()
 
     def ocupacion(self)-> float:
         """Devuelve la ocupación como fracción entre 0 y 1 (pasajeros / capacidad). O(1)."""
-        return self.pasajeros.longitud() / self.capacidad_maxima
+        return self.pasajeros.tamano() / self.capacidad_maxima
 
     def subir(self, pasajero: Pasajero)-> None:
         """
@@ -73,7 +73,7 @@ class Bus:
         O(n²) en el peor caso: cada borrado desplaza elementos.
         """
         bajaron = 0
-        for i in range(self.pasajeros.longitud() - 1, -1, -1):
+        for i in range(self.pasajeros.tamano() - 1, -1, -1):
             if self.pasajeros.posicion(i).destino == id_parada:
                 self.pasajeros.borrarposicion(i)
                 bajaron += 1

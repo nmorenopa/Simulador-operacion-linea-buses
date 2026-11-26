@@ -16,7 +16,7 @@ class ColaCircular:
         self.ultimo = None    # Último nodo; su siguiente apunta a cabeza
         self._tamano = 0      # Contador interno, evita recorrer para medir
 
-    def esta_vacia(self)-> bool:
+    def esta_vacio(self)-> bool:
         """Devuelve True si no hay elementos. O(1)."""
         return self._tamano == 0
 
@@ -26,7 +26,7 @@ class ColaCircular:
 
     def frente(self)-> Any:
         """Devuelve el primer dato sin sacarlo, o None si está vacía. O(1)."""
-        if self.esta_vacia():
+        if self.esta_vacio():
             return None
         return self.cabeza.dato
 
@@ -36,7 +36,7 @@ class ColaCircular:
         siguiente. Devuelve el dato de la nueva cabeza, o None si la cola está
         vacía. No crea ni borra nodos, solo mueve dos punteros. O(1).
         """
-        if self.esta_vacia():
+        if self.esta_vacio():
             return None
         
         self.ultimo = self.cabeza
@@ -48,7 +48,7 @@ class ColaCircular:
         """Agrega un dato al final de la cola. O(1)."""
         nuevo_nodo = Nodo(dato)
 
-        if self.esta_vacia():
+        if self.esta_vacio():
             # Único nodo: es cabeza y último a la vez
             self.cabeza = nuevo_nodo
             self.ultimo = nuevo_nodo
@@ -66,7 +66,7 @@ class ColaCircular:
         Saca y devuelve el primer dato (FIFO).
         Si la cola está vacía devuelve None. O(1).
         """
-        if self.esta_vacia():
+        if self.esta_vacio():
             return None
 
         dato_retorno = self.cabeza.dato   # Guardar ANTES de mover punteros

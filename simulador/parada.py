@@ -72,7 +72,7 @@ class Parada:
         cada desencolar es O(k) y k (niveles de prioridad) es fijo.
         """
         subieron = 0
-        while bus.cupos_libres() > 0 and not self.fila.esta_vacia():
+        while bus.cupos_libres() > 0 and not self.fila.esta_vacio():
             pasajero = self.fila.desencolar()
             pasajero.minuto_abordaje = minuto
             bus.subir(pasajero)

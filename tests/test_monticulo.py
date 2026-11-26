@@ -23,7 +23,7 @@ from estructuras.monticulo import Monticulo
 def vaciar(monticulo):
     """Extrae todo y devuelve una lista con los elementos en el orden en que salen."""
     salida = []
-    while not monticulo.vacio():
+    while not monticulo.esta_vacio():
         salida.append(monticulo.extraer_raiz())
     return salida
 
@@ -75,8 +75,8 @@ class BusFalso:
 @pytest.mark.parametrize("tipo", ["minimos", "maximos"])
 def test_monticulo_nuevo_esta_vacio(tipo):
     m = Monticulo(tipo)
-    assert m.vacio()
-    assert m.longitud() == 0
+    assert m.esta_vacio()
+    assert m.tamano() == 0
     assert m.mostrar() == []
 
 
@@ -131,8 +131,8 @@ def test_un_elemento_es_la_raiz(tipo):
     m = Monticulo(tipo)
     m.insertar(42)
     assert m.ver_raiz() == 42
-    assert m.longitud() == 1
-    assert not m.vacio()
+    assert m.tamano() == 1
+    assert not m.esta_vacio()
 
 
 @pytest.mark.parametrize("tipo", ["minimos", "maximos"])
@@ -140,8 +140,8 @@ def test_extraer_el_unico_elemento_lo_deja_vacio(tipo):
     m = Monticulo(tipo)
     m.insertar(42)
     assert m.extraer_raiz() == 42
-    assert m.vacio()
-    assert m.longitud() == 0
+    assert m.esta_vacio()
+    assert m.tamano() == 0
 
 
 # ---------------------------------------------------------------
@@ -209,7 +209,7 @@ def test_acepta_textos_en_orden_alfabetico():
 
 
 # ---------------------------------------------------------------
-# ver_raiz, longitud y mostrar
+# ver_raiz, tamano y mostrar
 # ---------------------------------------------------------------
 def test_ver_raiz_no_saca_el_elemento():
     m = Monticulo("minimos")
@@ -217,7 +217,7 @@ def test_ver_raiz_no_saca_el_elemento():
         m.insertar(x)
     assert m.ver_raiz() == 1
     assert m.ver_raiz() == 1      # Mirar dos veces no cambia nada
-    assert m.longitud() == 3
+    assert m.tamano() == 3
 
 
 def test_ver_raiz_se_actualiza_al_insertar_uno_mejor():
@@ -234,10 +234,10 @@ def test_longitud_sube_y_baja():
     m = Monticulo("maximos")
     for k, x in enumerate([4, 8, 1, 6], start=1):
         m.insertar(x)
-        assert m.longitud() == k
+        assert m.tamano() == k
     for k in range(3, -1, -1):
         m.extraer_raiz()
-        assert m.longitud() == k
+        assert m.tamano() == k
 
 
 def test_mostrar_devuelve_el_arreglo_con_la_raiz_primero():
@@ -259,14 +259,14 @@ def test_mostrar_es_una_copia():
     copia.append(-100)                       # Cambiar la copia...
     copia[0] = 999
     assert m.mostrar() == [1, 2]             # ...no cambia el montículo
-    assert m.longitud() == 2
+    assert m.tamano() == 2
 
 
 def test_dos_monticulos_son_independientes():
     a = Monticulo("minimos")
     b = Monticulo("minimos")
     a.insertar(1)
-    assert b.vacio()
+    assert b.esta_vacio()
     assert a.elementos is not b.elementos
 
 
@@ -281,7 +281,7 @@ def test_la_propiedad_se_cumple_tras_cada_operacion(tipo):
     for _ in range(200):
         m.insertar(azar.randint(0, 50))
         assert cumple_propiedad(m.mostrar(), es_min)
-    while not m.vacio():
+    while not m.esta_vacio():
         m.extraer_raiz()
         assert cumple_propiedad(m.mostrar(), es_min)
 
@@ -316,7 +316,7 @@ def test_al_azar_insertando_y_extrayendo_intercalado(semilla):
             x = azar.randint(0, 30)
             m.insertar(x)
             referencia.append(x)
-        assert m.longitud() == len(referencia)
+        assert m.tamano() == len(referencia)
         if referencia:
             assert m.ver_raiz() == min(referencia)
 
@@ -327,7 +327,7 @@ def test_muchos_elementos():
     datos = [azar.randint(0, 10_000) for _ in range(5_000)]
     for x in datos:
         m.insertar(x)
-    assert m.longitud() == 5_000
+    assert m.tamano() == 5_000
     assert vaciar(m) == sorted(datos, reverse=True)
 
 
@@ -360,7 +360,7 @@ def test_extraer_hace_a_lo_sumo_2_log_n_comparaciones():
     for _ in range(n):
         m.insertar(Contador(azar.randint(0, 10_000)))
     peor = 0
-    while not m.vacio():
+    while not m.esta_vacio():
         Contador.comparaciones = 0
         m.extraer_raiz()
         peor = max(peor, Contador.comparaciones)
@@ -447,7 +447,7 @@ def test_ranking_sale_primero_el_anden_mas_lleno():
         ranking.insertar((esperando, anden))
     top_3 = [ranking.extraer_raiz() for _ in range(3)]
     assert top_3 == [(15, "A2"), (12, "A5"), (8, "A4")]
-    assert ranking.longitud() == 2           # Quedan los dos menos llenos
+    assert ranking.tamano() == 2           # Quedan los dos menos llenos
 
 
 def test_ranking_empate_lo_decide_el_segundo_campo():

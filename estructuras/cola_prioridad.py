@@ -30,13 +30,13 @@ class ColaPrioridad:
         """Devuelve la cantidad de elementos O(1)"""
         return self._tamano
     
-    def esta_vacia(self)-> bool:
+    def esta_vacio(self)-> bool:
         """Devuelve un booleano que indica si la cola esta vacia O(1)"""
         return self.tamano() == 0
     
     def frente(self)-> Any | None:
         """Devuelve el dato del primer elemento de la cola no vacia dentro de los k niveles O(k)"""
-        if self.esta_vacia():
+        if self.esta_vacio():
             return None
         
         primer_nivel_con_datos = self._primer_nivel_con_datos()
@@ -52,7 +52,7 @@ class ColaPrioridad:
     
     def desencolar(self) -> Any | None:
         """Saca y devuelve el dato de mayor prioridad, o None si está vacía. Dependiendo la cantidad k de niveles del arreglo O(k)."""
-        if self.esta_vacia():
+        if self.esta_vacio():
             return None
         
         primer_nivel_con_datos = self._primer_nivel_con_datos()
@@ -63,7 +63,7 @@ class ColaPrioridad:
     def _primer_nivel_con_datos(self)-> Cola | None:
         """Devuelve la primera cola no vacia en un nivel no vacio"""
         for k in range(self.cantidad_niveles):
-            if self.niveles.posicion(k).esta_vacia():
+            if self.niveles.posicion(k).esta_vacio():
                 continue
             
             return self.niveles.posicion(k)

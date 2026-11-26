@@ -1232,7 +1232,7 @@ class InterfazSimulador:
 
     def ejecutar_pendientes(self):
         """Saca de la Cola y ejecuta, en orden de llegada, todas las operaciones pendientes."""
-        while not self.pendientes.esta_vacia():
+        while not self.pendientes.esta_vacio():
             self.ejecutar_operacion(self.pendientes.borrar())
         self.actualizar_controles()
 
