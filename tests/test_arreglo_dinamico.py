@@ -11,7 +11,7 @@ def armar(*valores):
 
 def test_arreglo_nuevo_esta_vacio():
     a = ArregloDinamico()
-    assert a.vacio() and a.longitud() == 0
+    assert a.esta_vacio() and a.tamano() == 0
 
 
 def test_la_capacidad_crece_por_el_numero_aureo_al_llenarse():
@@ -49,7 +49,7 @@ def test_insertar_manda_el_desplazado_al_final():
     assert a.mostrar() == [1, 2, 3]
     a.insertar(0, 0)                 # el 1 se va al final
     assert a.mostrar() == [0, 2, 3, 1]
-    a.insertar(a.longitud(), 4)      # k == n: queda al final, nadie se mueve
+    a.insertar(a.tamano(), 4)      # k == n: queda al final, nadie se mueve
     assert a.mostrar() == [0, 2, 3, 1, 4]
 
 
@@ -68,7 +68,7 @@ def test_borrar_posicion_del_ultimo_y_del_unico():
     assert a.mostrar() == [1, 2]
     b = armar("x")
     assert b.borrarposicion(0) == "x"
-    assert b.vacio()
+    assert b.esta_vacio()
 
 
 def test_borrar_al_final_en_vacio_lanza_error():

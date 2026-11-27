@@ -8,23 +8,23 @@ def crear(paradas=4, buses=2, capacidad=10, tasa=0.5, prob=0.2, semilla=1):
 
 
 def ids_de_parada_de_buses(sim):
-    return [sim.buses.posicion(i).parada_actual.id for i in range(sim.buses.longitud())]
+    return [sim.buses.posicion(i).parada_actual.id for i in range(sim.buses.tamano())]
 
 
 def total_en_sistema(sim):
     """Pasajeros esperando + a bordo + que ya bajaron."""
-    e = sum(sim.paradas.posicion(i).esperando() for i in range(sim.paradas.longitud()))
-    a = sum(sim.buses.posicion(i).cantidad_pasajeros() for i in range(sim.buses.longitud()))
-    b = sum(sim.buses.posicion(i).total_transportados for i in range(sim.buses.longitud()))
+    e = sum(sim.paradas.posicion(i).esperando() for i in range(sim.paradas.tamano()))
+    a = sum(sim.buses.posicion(i).cantidad_pasajeros() for i in range(sim.buses.tamano()))
+    b = sum(sim.buses.posicion(i).total_transportados for i in range(sim.buses.tamano()))
     return e + a + b
 
 
 # ---------------------------- constructor ----------------------------
 def test_crea_las_paradas_y_buses_pedidos():
     sim = crear(paradas=5, buses=3)
-    assert sim.paradas.longitud() == 5 and sim.buses.longitud() == 3
+    assert sim.paradas.tamano() == 5 and sim.buses.tamano() == 3
     assert [sim.paradas.posicion(i).id for i in range(5)] == [0, 1, 2, 3, 4]
-    assert sim.minuto == 0 and not sim.en_pausa and sim.historial.esta_vacia()
+    assert sim.minuto == 0 and not sim.en_pausa and sim.historial.esta_vacio()
 
 
 def test_los_buses_arrancan_repartidos_con_la_formula_de_rotaciones():
@@ -107,7 +107,7 @@ def test_destinos_siempre_validos_y_distintos_del_origen():
         sim._generar_llegadas()
     for i in range(4):
         fila = sim.paradas.posicion(i).fila
-        while not fila.esta_vacia():
+        while not fila.esta_vacio():
             p = fila.desencolar()
             assert p.origen == i and p.destino != i and 0 <= p.destino < 4
 
@@ -117,9 +117,9 @@ def test_ids_de_pasajero_unicos():
     for _ in range(5):
         sim._generar_llegadas()
     ids = []
-    for i in range(sim.paradas.longitud()):
+    for i in range(sim.paradas.tamano()):
         fila = sim.paradas.posicion(i).fila
-        while not fila.esta_vacia():
+        while not fila.esta_vacio():
             ids.append(fila.desencolar().id)
     assert len(ids) == len(set(ids)) == 20
 
@@ -190,16 +190,16 @@ def test_las_series_guardan_una_muestra_por_tick():
     sim = crear()
     for _ in range(7):
         sim.avanzar_tick()
-    assert sim.serie_esperando.longitud() == 7 and sim.serie_ocupacion.longitud() == 7
+    assert sim.serie_esperando.tamano() == 7 and sim.serie_ocupacion.tamano() == 7
 
 
 # ---------------------------- acciones y deshacer ----------------------------
 def test_agregar_bus_y_deshacer():
     sim = crear(buses=2)
     sim.agregar_bus()
-    assert sim.buses.longitud() == 3
+    assert sim.buses.tamano() == 3
     assert sim.deshacer() == "Se quitó el último bus agregado"
-    assert sim.buses.longitud() == 2 and sim.historial.esta_vacia()
+    assert sim.buses.tamano() == 2 and sim.historial.esta_vacio()
 
 
 def test_bus_nuevo_arranca_en_la_parada_mas_llena():
@@ -223,7 +223,7 @@ def test_pausar_dos_veces_no_ensucia_el_historial():
     sim = crear()
     sim.pausar()
     sim.pausar()
-    assert sim.historial.longitud() == 1
+    assert sim.historial.tamano() == 1
 
 
 def test_deshacer_sin_acciones_devuelve_none():
@@ -235,7 +235,7 @@ def test_no_se_deshace_un_bus_con_pasajeros_y_la_accion_se_conserva():
     bus = sim.agregar_bus()
     bus.subir(Pasajero(1, 0, 1, PRIORIDAD_NORMAL, 0))
     assert "No se puede deshacer" in sim.deshacer()
-    assert sim.buses.longitud() == 2 and sim.historial.longitud() == 1
+    assert sim.buses.tamano() == 2 and sim.historial.tamano() == 1
     bus.bajar_en(1)
     assert sim.deshacer() == "Se quitó el último bus agregado"
 
@@ -262,7 +262,7 @@ def test_estado_informa_el_tope_de_la_pila_sin_sacarlo():
     sim.agregar_bus()
     e = sim.estado()
     assert e["historial"] == 3 and e["ultima_accion"] == "agregar_bus"
-    assert sim.historial.longitud() == 3          # consultar estado() no cambia la Pila
+    assert sim.historial.tamano() == 3          # consultar estado() no cambia la Pila
     sim.deshacer()
     e = sim.estado()
     assert e["historial"] == 2 and e["ultima_accion"] == "reanudar"
@@ -313,9 +313,9 @@ def prioritarios_reales(parada):
 
 def test_hay_un_evento_por_bus_en_cada_tick():
     sim = crear(buses=3)
-    assert sim.eventos.longitud() == 0           # antes del primer tick no hay nada
+    assert sim.eventos.tamano() == 0           # antes del primer tick no hay nada
     sim.avanzar_tick()
-    assert sim.eventos.longitud() == 3
+    assert sim.eventos.tamano() == 3
     assert [e["bus"] for e in sim.eventos.mostrar()] == [0, 1, 2]
     assert all(set(e) == CAMPOS_EVENTO for e in sim.eventos.mostrar())
 
@@ -324,13 +324,13 @@ def test_los_eventos_se_reemplazan_en_cada_tick():
     sim = crear(buses=2)
     sim.avanzar_tick()
     sim.avanzar_tick()
-    assert sim.eventos.longitud() == 2           # solo los del último tick, no acumulados
+    assert sim.eventos.tamano() == 2           # solo los del último tick, no acumulados
 
 
 def test_los_eventos_son_coherentes_con_lo_que_paso():
     sim = crear(paradas=5, buses=3, capacidad=4, tasa=0.7, prob=0.3, semilla=11)
     for _ in range(150):
-        antes = [sim.buses.posicion(i).parada_actual.id for i in range(sim.buses.longitud())]
+        antes = [sim.buses.posicion(i).parada_actual.id for i in range(sim.buses.tamano())]
         sim.avanzar_tick()
         for e in sim.eventos.mostrar():
             assert e["parada"] == antes[e["bus"]]                       # parada donde abordó
@@ -369,7 +369,7 @@ def test_el_contador_de_prioritarios_coincide_con_la_fila_real():
     sim = crear(paradas=4, buses=2, capacidad=3, tasa=0.8, prob=0.4, semilla=9)
     for _ in range(200):
         sim.avanzar_tick()
-        for i in range(sim.paradas.longitud()):
+        for i in range(sim.paradas.tamano()):
             parada = sim.paradas.posicion(i)
             assert parada.prioritarios_esperando == prioritarios_reales(parada)
 

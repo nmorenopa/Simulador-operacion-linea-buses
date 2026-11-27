@@ -2,7 +2,8 @@
 
 > Documento para que el asistente (Claude Code) y el equipo compartan el mismo contexto.
 > Equipo: Pablo José Cárdenas, Nicolás Moreno Parra y Santiago Rodríguez Ortega.
-> Curso: Estructuras de Datos. **Entrega: jueves 26 de noviembre de 2026.**
+> Curso: Estructuras de Datos. **Entrega: sábado 28 de noviembre de 2026** (se aplazó el
+> 24-nov; antes era el jueves 26).
 
 ## 1. Objetivo del curso (lo que realmente importa)
 
@@ -172,7 +173,7 @@ dice "duplica" donde el código usa factor áureo; docstring de `bajar_en` dice 
 `manual_usuario.md` menciona 20 % de prioritarios y el código usa 50 %; `.gitignore` tiene una línea
 `.venv/.DS_Store` que probablemente son dos.
 
-## 9. Cronograma (9 días: 17 al 26 de noviembre)
+## 9. Cronograma (17 al 28 de noviembre; la entrega pasó del 26 al 28 el 24-nov)
 
 | Bloque | Qué | Quién guía |
 |---|---|---|

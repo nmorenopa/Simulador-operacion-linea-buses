@@ -19,7 +19,7 @@ from estructuras.cola_prioridad import ColaPrioridad
 def vaciar(cola):
     """Desencola todo y devuelve una lista con los datos, en orden de salida."""
     salida = []
-    while not cola.esta_vacia():
+    while not cola.esta_vacio():
         salida.append(cola.desencolar())
     return salida
 
@@ -29,7 +29,7 @@ def vaciar(cola):
 # ---------------------------------------------------------------
 def test_cola_nueva_esta_vacia():
     cola = ColaPrioridad(2)
-    assert cola.esta_vacia()
+    assert cola.esta_vacio()
     assert cola.tamano() == 0
     assert cola.frente() is None
     assert cola.desencolar() is None
@@ -44,11 +44,11 @@ def test_constructor_con_menos_de_un_nivel_lanza_error(niveles):
 def test_constructor_crea_un_nivel_por_cada_prioridad():
     cola = ColaPrioridad(4)
     assert cola.cantidad_niveles == 4
-    assert cola.niveles.longitud() == 4
+    assert cola.niveles.tamano() == 4
     for k in range(4):
         # Cada nivel es una Cola vacía e independiente de las demás
         assert isinstance(cola.niveles.posicion(k), Cola)
-        assert cola.niveles.posicion(k).esta_vacia()
+        assert cola.niveles.posicion(k).esta_vacio()
     assert cola.niveles.posicion(0) is not cola.niveles.posicion(1)
 
 
@@ -97,7 +97,7 @@ def test_desencolar_salta_los_niveles_vacios():
     cola = ColaPrioridad(4)
     cola.encolar("solo", 3)            # Los niveles 0, 1 y 2 están vacíos
     assert cola.desencolar() == "solo"
-    assert cola.esta_vacia()
+    assert cola.esta_vacio()
 
 
 def test_intercalar_encolar_y_desencolar_mantiene_el_orden():
@@ -143,13 +143,13 @@ def test_frente_coincide_con_lo_que_sale_en_desencolar():
     cola = ColaPrioridad(3)
     for dato, prio in [("x", 2), ("y", 1), ("z", 2), ("w", 1)]:
         cola.encolar(dato, prio)
-    while not cola.esta_vacia():
+    while not cola.esta_vacio():
         esperado = cola.frente()
         assert cola.desencolar() == esperado
 
 
 # ---------------------------------------------------------------
-# tamano() y esta_vacia()
+# tamano() y esta_vacio()
 # ---------------------------------------------------------------
 def test_tamano_sube_al_encolar_y_baja_al_desencolar():
     cola = ColaPrioridad(3)
@@ -157,7 +157,7 @@ def test_tamano_sube_al_encolar_y_baja_al_desencolar():
     cola.encolar("B", 0)
     cola.encolar("C", 2)
     assert cola.tamano() == 3
-    assert not cola.esta_vacia()
+    assert not cola.esta_vacio()
 
     cola.desencolar()
     assert cola.tamano() == 2
@@ -165,7 +165,7 @@ def test_tamano_sube_al_encolar_y_baja_al_desencolar():
     assert cola.tamano() == 1
     cola.desencolar()
     assert cola.tamano() == 0
-    assert cola.esta_vacia()
+    assert cola.esta_vacio()
 
 
 def test_desencolar_en_cola_vacia_no_deja_el_tamano_negativo():
@@ -183,7 +183,7 @@ def test_tamano_coincide_con_la_suma_de_los_niveles():
     cola.desencolar()
     suma = 0
     for k in range(cola.cantidad_niveles):
-        suma += cola.niveles.posicion(k).longitud()
+        suma += cola.niveles.posicion(k).tamano()
     assert cola.tamano() == suma == 4
 
 
@@ -191,7 +191,7 @@ def test_vaciar_y_reutilizar():
     cola = ColaPrioridad(2)
     cola.encolar("A", 1)
     cola.desencolar()
-    assert cola.esta_vacia()
+    assert cola.esta_vacio()
     cola.encolar("B", 0)
     assert cola.frente() == "B"
     assert cola.tamano() == 1
@@ -211,7 +211,7 @@ def test_un_encolar_fallido_no_deja_rastro():
     cola = ColaPrioridad(2)
     with pytest.raises(ValueError):
         cola.encolar("X", 2)
-    assert cola.esta_vacia()           # El contador no subió
+    assert cola.esta_vacio()           # El contador no subió
     assert cola.tamano() == 0
     assert cola.frente() is None
 

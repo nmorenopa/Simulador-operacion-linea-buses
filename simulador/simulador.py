@@ -124,7 +124,7 @@ class Simulador:
 
         self._generar_llegadas()
 
-        for i in range(self.buses.longitud()):
+        for i in range(self.buses.tamano()):
             bus = self.buses.posicion(i)
             parada = bus.parada_actual
 
@@ -164,7 +164,7 @@ class Simulador:
         Agrega un bus a la flota. Arranca en la parada con más gente esperando.
         Devuelve el bus creado. O(P + B).
         """
-        bus = self._crear_bus(self.buses.longitud(), self._id_parada_mas_llena())
+        bus = self._crear_bus(self.buses.tamano(), self._id_parada_mas_llena())
         self.buses.agregaralfinal(bus)
         self.historial.apilar(ACCION_AGREGAR_BUS)
         return bus
@@ -189,13 +189,13 @@ class Simulador:
         deshacer. Un bus agregado solo se puede quitar si no lleva pasajeros a
         bordo; en ese caso la acción se conserva en la pila. O(1).
         """
-        if self.historial.esta_vacia():
+        if self.historial.esta_vacio():
             return None
 
         accion = self.historial.ver_tope()
 
         if accion == ACCION_AGREGAR_BUS:
-            ultimo = self.buses.posicion(self.buses.longitud() - 1)
+            ultimo = self.buses.posicion(self.buses.tamano() - 1)
             if ultimo.cantidad_pasajeros() > 0:
                 return "No se puede deshacer: el último bus agregado lleva pasajeros a bordo"
             self.buses.borraralfinal()
@@ -220,13 +220,13 @@ class Simulador:
         el minuto, si está en pausa, los datos de cada parada (con cuántos de los
         que esperan son prioritarios) y de cada bus, y los eventos del último tick.
         También informa la Pila de operaciones: "historial" (cuántas acciones
-        hay, con longitud(), O(1)) y "ultima_accion" (la del tope, con
+        hay, con tamano(), O(1)) y "ultima_accion" (la del tope, con
         ver_tope(), O(1); None si la Pila está vacía), sin sacar nada de ella.
         Usa listas y diccionarios de Python solo para entregar datos a la
         interfaz; el estado real vive en nuestras estructuras. O(P + B).
         """
         paradas = []
-        for i in range(self.paradas.longitud()):
+        for i in range(self.paradas.tamano()):
             parada = self.paradas.posicion(i)
             paradas.append({
                 "id": parada.id,
@@ -236,7 +236,7 @@ class Simulador:
             })
 
         buses = []
-        for i in range(self.buses.longitud()):
+        for i in range(self.buses.tamano()):
             bus = self.buses.posicion(i)
             buses.append({
                 "id": bus.id,
@@ -252,7 +252,7 @@ class Simulador:
             "paradas": paradas,
             "buses": buses,
             "eventos": self.eventos.mostrar(),
-            "historial": self.historial.longitud(),
+            "historial": self.historial.tamano(),
             "ultima_accion": self.historial.ver_tope(),
         }
 
@@ -269,7 +269,7 @@ class Simulador:
         generados = 0
         abordados = 0
         suma_espera = 0
-        for i in range(self.paradas.longitud()):
+        for i in range(self.paradas.tamano()):
             parada = self.paradas.posicion(i)
             generados += parada.total_llegados
             abordados += parada.total_abordados
@@ -280,11 +280,11 @@ class Simulador:
         else:
             espera_promedio = 0.0
 
-        if self.serie_ocupacion.longitud() > 0:
+        if self.serie_ocupacion.tamano() > 0:
             suma = 0
-            for i in range(self.serie_ocupacion.longitud()):
+            for i in range(self.serie_ocupacion.tamano()):
                 suma += self.serie_ocupacion.posicion(i)
-            ocupacion_promedio = suma / self.serie_ocupacion.longitud()
+            ocupacion_promedio = suma / self.serie_ocupacion.tamano()
         else:
             ocupacion_promedio = 0.0
 
@@ -295,7 +295,7 @@ class Simulador:
             "pasajeros_esperando": self._total_esperando(),
             "espera_promedio": espera_promedio,
             "ocupacion_promedio": ocupacion_promedio,
-            "buses": self.buses.longitud(),
+            "buses": self.buses.tamano(),
         }
 
     # --------------------------
@@ -310,7 +310,7 @@ class Simulador:
         """
         
         ruta_bus = ColaCircular()
-        for i in range(self.paradas.longitud()):
+        for i in range(self.paradas.tamano()):
             ruta_bus.encolar(self.paradas.posicion(i))
         
         for _ in range(rotaciones):
@@ -328,13 +328,13 @@ class Simulador:
         Con K = 1 los llamados al generador aleatorio son exactamente los mismos
         y en el mismo orden que antes, así una simulación con semilla no cambia.
         """
-        for i in range(self.paradas.longitud()):
+        for i in range(self.paradas.tamano()):
             parada = self.paradas.posicion(i)
             for _ in range(self.intentos_llegada):
                 if self._aleatorio.random() < parada.tasa_llegada:
                     # Destino al azar entre las OTRAS paradas, todas igual de probables:
                     # se elige entre 0 y n-2 y se salta el lugar del origen
-                    destino = self._aleatorio.randrange(self.paradas.longitud() - 1)
+                    destino = self._aleatorio.randrange(self.paradas.tamano() - 1)
                     if destino >= parada.id:
                         destino += 1
 
@@ -351,16 +351,16 @@ class Simulador:
     def _total_esperando(self):
         """Pasajeros esperando en todas las paradas. O(P)."""
         total = 0
-        for i in range(self.paradas.longitud()):
+        for i in range(self.paradas.tamano()):
             total += self.paradas.posicion(i).esperando()
         return total
     
     def _ocupacion_actual(self):
         """Ocupación promedio de la flota en este momento (0 a 1). O(B)."""
         suma = 0
-        for i in range(self.buses.longitud()):
+        for i in range(self.buses.tamano()):
             suma += self.buses.posicion(i).ocupacion()
-        return suma / self.buses.longitud()
+        return suma / self.buses.tamano()
     
     def _registrar_estadisticas(self):
         """Guarda una muestra por tick para las gráficas. O(P + B)."""
@@ -370,7 +370,7 @@ class Simulador:
     def _id_parada_mas_llena(self) -> int:
         """Devuelve el id de la parada con más pasajeros esperando (la primera si hay empate). O(P)."""
         id_mas_llena = 0
-        for i in range(1, self.paradas.longitud()):
+        for i in range(1, self.paradas.tamano()):
             if self.paradas.posicion(i).esperando() > self.paradas.posicion(id_mas_llena).esperando():
                 id_mas_llena = i
 

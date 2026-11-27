@@ -14,7 +14,7 @@ class Pila:
         self.tope = None      # Último nodo apilado (el próximo en salir)
         self._tamano = 0      # Contador interno: evita recorrer la lista para medir
 
-    def esta_vacia(self)-> bool:
+    def esta_vacio(self)-> bool:
         """Devuelve True si no hay elementos. O(1)."""
         return self.tope is None
 
@@ -28,7 +28,7 @@ class Pila:
 
     def desapilar(self)->Any | None:
         """Quita y devuelve el dato del tope, o None si está vacía. O(1)."""
-        if self.esta_vacia():
+        if self.esta_vacio():
             return None
 
         dato = self.tope.dato
@@ -39,12 +39,12 @@ class Pila:
 
     def ver_tope(self)-> Any | None:
         """Devuelve el dato del tope sin sacarlo, o None si está vacía. O(1)."""
-        if self.esta_vacia():
+        if self.esta_vacio():
             return None
 
         return self.tope.dato
 
-    def longitud(self)-> int:
+    def tamano(self)-> int:
         """Devuelve la cantidad de elementos usando el contador interno. O(1)."""
         return self._tamano
 

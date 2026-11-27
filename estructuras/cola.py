@@ -16,7 +16,7 @@ class Cola:
         self.final = None     # Último nodo (donde se agrega)
         self._tamano = 0      # Contador interno: evita recorrer la lista para medir
 
-    def esta_vacia(self) -> bool:
+    def esta_vacio(self) -> bool:
         """Devuelve True si no hay elementos. O(1)."""
         return self.frente is None
 
@@ -24,7 +24,7 @@ class Cola:
         """Agrega un dato al final de la cola. O(1)."""
         aux = Nodo(dato)
 
-        if self.esta_vacia():
+        if self.esta_vacio():
             self.frente = aux
             self.final = aux
         else:
@@ -35,7 +35,7 @@ class Cola:
 
     def borrar(self)-> Any:
         """Saca y devuelve el dato del frente, o None si está vacía. O(1)."""
-        if self.esta_vacia():
+        if self.esta_vacio():
             return None
 
         dato = self.frente.dato
@@ -50,12 +50,12 @@ class Cola:
 
     def ver_frente(self)-> Any | None:
         """Devuelve el dato del frente sin sacarlo, o None si está vacía. O(1)."""
-        if self.esta_vacia():
+        if self.esta_vacio():
             return None
 
         return self.frente.dato
 
-    def longitud(self)-> int:
+    def tamano(self)-> int:
         """Devuelve la cantidad de elementos usando el contador interno. O(1)."""
         return self._tamano
 

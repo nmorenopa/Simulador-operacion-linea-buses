@@ -3,7 +3,7 @@ from estructuras.cola_circular import ColaCircular
 
 def test_cola_nueva_esta_vacia():
     cola = ColaCircular()
-    assert cola.esta_vacia()
+    assert cola.esta_vacio()
     assert cola.tamano() == 0
     assert cola.frente() is None
 
@@ -40,7 +40,7 @@ def test_desencolar_hasta_vaciar_y_reutilizar():
     cola.encolar("B")
     cola.desencolar()
     cola.desencolar()
-    assert cola.esta_vacia()
+    assert cola.esta_vacio()
     assert cola.cabeza is None and cola.ultimo is None
     cola.encolar("C")
     assert cola.frente() == "C"
