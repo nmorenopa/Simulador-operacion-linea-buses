@@ -13,8 +13,10 @@ a la siguiente sin agotar la actual. Detalle y estado en `docs/contexto_fase2.md
 1. **Estructuras como TDA**, de cero, con lo visto en clase (montículo, AVL, árbol de segmentos). Lista;
    solo ajustes menores cuando una decisión de la etapa 2 o 3 lo pida.
 2. **Uso y aplicación** de cada estructura nueva, con justificación clara, sin quitar ninguna
-   estructura lineal de la Fase 1. ← **estamos aquí**. La IA opina solo cuando Nicolás lo pida.
-3. **Implementar ese uso** en `simulador/` (el cambio principal se ve en `simulador.py`).
+   estructura lineal de la Fase 1. Cerrada el 28-nov: decisiones en `docs/explicacion_estructuras.md` §2
+   y guía de implementación en `docs/contexto_fase2.md` §3.3.1, §3.5 y §3.6.
+3. **Implementar ese uso** en `simulador/` (el cambio principal se ve en `simulador.py`). ← **estamos aquí**.
+   Por piezas pequeñas, con aprobación de Nicolás antes de tocar `simulador/` o `api/`.
 4. **API completa**: todos los GET y POST que pida el alcance, enrutamiento listo.
 5. **Interfaz web** profesional (HTML + CSS + JS). Aquí la IA hace la mayor parte, ajustando el
    alcance con las ideas del equipo.

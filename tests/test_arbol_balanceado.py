@@ -449,6 +449,72 @@ def test_piso_antes_de_la_primera_clave_es_none():
 
 
 # ---------------------------------------------------------------
+# techo(clave): la menor clave que sea mayor o igual a la pedida
+# ---------------------------------------------------------------
+def test_techo_en_vacio_es_none():
+    assert ArbolAVL().techo(10) is None
+
+
+@pytest.mark.parametrize("pedida, esperada", [
+    (10, 10),      # Existe: el techo es ella misma
+    (15, 20),      # Entre 10 y 20: el techo es 20
+    (20.1, 30),
+    (-100, 10),    # Antes de la primera: la primera
+    (50, 50),      # La mayor de todas
+])
+def test_techo_devuelve_la_menor_clave_mayor_o_igual(pedida, esperada):
+    arbol = arbol_con([30, 10, 50, 20, 40])
+    assert arbol.techo(pedida) == (esperada, str(esperada))
+
+
+def test_techo_despues_de_la_ultima_clave_es_none():
+    arbol = arbol_con([30, 10, 50])
+    assert arbol.techo(51) is None
+
+
+# ---------------------------------------------------------------
+# minimo() y maximo()
+# ---------------------------------------------------------------
+def test_minimo_y_maximo_en_vacio_son_none():
+    arbol = ArbolAVL()
+    assert arbol.minimo() is None
+    assert arbol.maximo() is None
+
+
+def test_minimo_y_maximo_con_una_sola_clave_son_la_misma():
+    arbol = arbol_con([7])
+    assert arbol.minimo() == (7, "7")
+    assert arbol.maximo() == (7, "7")
+
+
+def test_minimo_y_maximo_devuelven_los_extremos():
+    arbol = arbol_con([30, 10, 50, 20, 40, 5, 60])
+    assert arbol.minimo() == (5, "5")
+    assert arbol.maximo() == (60, "60")
+
+
+def test_minimo_y_maximo_no_cambian_el_arbol():
+    arbol = arbol_con([30, 10, 50, 20, 40])
+    antes = arbol.en_orden()
+    arbol.minimo()
+    arbol.maximo()
+    assert arbol.en_orden() == antes
+    assert arbol.tamano() == 5
+
+
+def test_maximo_con_claves_compuestas_da_la_peor_espera():
+    """
+    Uso decidido del AVL: clave (tiempo_espera, id_pasajero). Entre dos con la
+    misma espera, gana el id mayor (comparación de tuplas posición por posición).
+    """
+    arbol = ArbolAVL()
+    for espera, id_pasajero in [(3, 0), (9, 1), (2, 2), (9, 3), (5, 4)]:
+        arbol.insertar((espera, id_pasajero), f"P{id_pasajero}")
+    assert arbol.maximo() == ((9, 3), "P3")
+    assert arbol.minimo() == ((2, 2), "P2")
+
+
+# ---------------------------------------------------------------
 # Pruebas al azar contra un diccionario de referencia
 # ---------------------------------------------------------------
 @pytest.mark.parametrize("semilla", range(20))
@@ -471,6 +537,15 @@ def test_al_azar_igual_que_un_diccionario(semilla):
         menores = [k for k in referencia if k <= clave]
         esperado = (max(menores), referencia[max(menores)]) if menores else None
         assert arbol.piso(clave) == esperado
+        # techo: la menor clave de la referencia que sea >= clave
+        mayores = [k for k in referencia if k >= clave]
+        esperado = (min(mayores), referencia[min(mayores)]) if mayores else None
+        assert arbol.techo(clave) == esperado
+    if referencia:
+        assert arbol.minimo() == (min(referencia), referencia[min(referencia)])
+        assert arbol.maximo() == (max(referencia), referencia[max(referencia)])
+    else:
+        assert arbol.minimo() is None and arbol.maximo() is None
     for _ in range(30):
         desde, hasta = azar.randint(-5, 90), azar.randint(-5, 90)
         esperado = sorted((k, v) for k, v in referencia.items() if desde <= k <= hasta)

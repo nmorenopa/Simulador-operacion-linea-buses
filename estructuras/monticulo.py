@@ -6,11 +6,31 @@ from estructuras.arreglo_dinamico import ArregloDinamico
 class Monticulo:
     """
     Montículo (heap) sobre un ArregloDinamico.
-    Puede ser de mínimos o de máximos, con cualquier elemento que Python sepa
-    comparar con un orden total (números, textos, tuplas de esos...).
+    Puede ser de mínimos o de máximos:
       - De mínimos: cada padre es menor o igual a sus hijos; la raíz es el MENOR.
       - De máximos: cada padre es mayor o igual a sus hijos; la raíz es el MAYOR.
     Posición i: padre en (i-1)//2, hijos en 2i+1 y 2i+2.
+
+    Contrato (precondición del TDA): los elementos deben poder compararse
+    entre sí con "<" (números, textos, tuplas de esos, o cualquier clase que
+    defina __lt__). El montículo no sabe qué guarda: solo los compara.
+
+    Empates: se permiten. Como la regla es "menor o igual" (o "mayor o igual"),
+    dos elementos iguales pueden convivir sin problema. Pero el montículo NO es
+    estable: entre empatados, no garantiza que salga primero el que llegó antes.
+
+    Claves compuestas (tuplas): Python las compara posición por posición, y solo
+    mira el siguiente componente si hay empate en el anterior. Por eso cada
+    componente al que se pueda llegar debe ser comparable. Si la tupla lleva un
+    objeto que no se compara (por ejemplo, un Bus), se pone antes un contador
+    que nunca se repita:
+        (minuto, contador, bus)
+    Así Python nunca llega a comparar los buses (evita un TypeError) y, de paso,
+    entre empatados sale primero el que llegó antes.
+
+    Orden mixto: para "mayor primero" en un componente y "menor primero" en otro,
+    se niega el que va al revés. Ej.: (-ocupacion, id) en uno de mínimos da la
+    mayor ocupación primero y, si empatan, el menor id.
     """
 
     def __init__(self, tipo: Literal["minimos", "maximos"]) -> None:

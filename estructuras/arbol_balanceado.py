@@ -290,6 +290,54 @@ class ArbolAVL:
                 nodo = nodo.izquierdo
         return None if mejor is None else (mejor.clave, mejor.valor)
 
+    def techo(self, clave: Any) -> tuple | None:
+        """
+        "Techo" de una clave: la pareja (clave, valor) con la MENOR clave que sea
+        mayor o igual a la pedida, o None si todas son menores.
+        Es el espejo de piso(): si el nodo sirve (clave >= pedida), se guarda
+        como candidato y se busca uno mejor (más pequeño) a la izquierda; si no
+        sirve, se va a la derecha.
+        Ejemplo: el primer pasajero que esperó 15 minutos o más.
+        Complejidad: O(log n).
+        """
+        mejor = None
+        nodo = self.raiz
+        while nodo is not None:
+            if nodo.clave >= clave:
+                mejor = nodo
+                nodo = nodo.izquierdo
+            else:
+                nodo = nodo.derecho
+        return None if mejor is None else (mejor.clave, mejor.valor)
+
+    def minimo(self) -> tuple | None:
+        """
+        La pareja (clave, valor) con la MENOR clave, o None si el árbol está vacío.
+        Idea: en un ABB lo más pequeño siempre está a la izquierda, así que se
+        baja por la izquierda hasta que no haya más.
+        Complejidad: O(log n), porque la altura de un AVL es O(log n).
+        """
+        if self.raiz is None:
+            return None
+        nodo = self.raiz
+        while nodo.izquierdo is not None:
+            nodo = nodo.izquierdo
+        return (nodo.clave, nodo.valor)
+
+    def maximo(self) -> tuple | None:
+        """
+        La pareja (clave, valor) con la MAYOR clave, o None si el árbol está vacío.
+        Idea: espejo de minimo(): se baja por la derecha hasta que no haya más.
+        Ejemplo: el pasajero con la peor espera.
+        Complejidad: O(log n), porque la altura de un AVL es O(log n).
+        """
+        if self.raiz is None:
+            return None
+        nodo = self.raiz
+        while nodo.derecho is not None:
+            nodo = nodo.derecho
+        return (nodo.clave, nodo.valor)
+
     # --------------------------------------------------
     # RECORRIDO EN ORDEN
     # --------------------------------------------------
