@@ -1,3 +1,6 @@
+from collections.abc import Callable, Sequence
+from typing import Any
+
 from estructuras.arreglo_dinamico import ArregloDinamico
 
 
@@ -21,7 +24,12 @@ class ArbolSegmentos:
     los hijos de i están en 2i+1 y 2i+2.
     """
 
-    def __init__(self, datos, combinar, neutro) -> None:
+    def __init__(
+        self,
+        datos: Sequence[Any],
+        combinar: Callable[[Any, Any], Any],
+        neutro: Any,
+    ) -> None:
         """Construye el árbol desde una secuencia de valores. O(n)."""
         self._combinar = combinar
         self._neutro = neutro
@@ -37,7 +45,7 @@ class ArbolSegmentos:
     # MÉTODOS PRIVADOS
     # --------------------------------------------------
 
-    def _construir(self, nodo: int, izq: int, der: int, datos) -> None:
+    def _construir(self, nodo: int, izq: int, der: int, datos: Sequence[Any]) -> None:
         """Llena el tramo [izq, der]: hojas copian el dato, el resto combina hijos. O(n)."""
         if izq == der:
             self._arbol.cambiarposicion(nodo, datos[izq])
@@ -61,7 +69,7 @@ class ArbolSegmentos:
             )
         )
 
-    def _actualizar(self, nodo: int, izq: int, der: int, posicion: int, valor) -> None:
+    def _actualizar(self, nodo: int, izq: int, der: int, posicion: int, valor: Any) -> None:
         """Baja a la hoja, la cambia y recalcula al volver. O(log n)."""
         if izq == der:
             self._arbol.cambiarposicion(nodo, valor)
@@ -78,7 +86,7 @@ class ArbolSegmentos:
 
         self._recalcular(nodo, hijo_izq, hijo_der)
 
-    def _consultar(self, nodo: int, izq: int, der: int, desde: int, hasta: int):
+    def _consultar(self, nodo: int, izq: int, der: int, desde: int, hasta: int) -> Any:
         """
         Usa el resumen del tramo si está dentro del rango; si no, baja a los
         hijos que lo toquen (izquierda primero). O(log n).
@@ -112,12 +120,12 @@ class ArbolSegmentos:
     # OPERACIONES PÚBLICAS
     # --------------------------------------------------
 
-    def actualizar(self, posicion: int, valor) -> None:
+    def actualizar(self, posicion: int, valor: Any) -> None:
         """Cambia el valor de una posición. IndexError si no existe. O(log n)."""
         self._validar_posicion(posicion)
         self._actualizar(0, 0, self._n - 1, posicion, valor)
 
-    def consultar(self, desde: int, hasta: int):
+    def consultar(self, desde: int, hasta: int) -> Any | None:
         """
         Combina las posiciones desde..hasta (ambas incluidas).
         None si está vacío; ValueError si el rango está invertido;
@@ -134,7 +142,7 @@ class ArbolSegmentos:
 
         return self._consultar(0, 0, self._n - 1, desde, hasta)
 
-    def consultar_todo(self):
+    def consultar_todo(self) -> Any | None:
         """Combina todas las posiciones (la raíz), o None si está vacío. O(1)."""
         if self.esta_vacio():
             return None

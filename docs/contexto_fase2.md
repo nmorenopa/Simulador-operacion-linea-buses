@@ -2,8 +2,8 @@
 
 > Documento para que el asistente (Claude Code) y el equipo compartan el mismo contexto.
 > Equipo: Pablo José Cárdenas, Nicolás Moreno Parra y Santiago Rodríguez Ortega.
-> Curso: Estructuras de Datos. **Entrega: sábado 28 de noviembre de 2026** (se aplazó el
-> 24-nov; antes era el jueves 26).
+> Curso: Estructuras de Datos. **Entrega: fecha aún no fija** (se había aplazado al sábado
+> 28-nov-2026; el 27-nov Nicolás indicó que no es definitiva). Se avanza etapa por etapa (§9).
 
 ## 1. Objetivo del curso (lo que realmente importa)
 
@@ -40,6 +40,11 @@ anterior está en `docs/descripcion.md`.
 Escalar el simulador a **una sola ruta de TransMilenio: Portal Américas ↔ Portal Norte**
 (ida y vuelta), con **interfaz web** que dibuje el mapa de Bogotá.
 
+- Un único servicio, el **FB28**: se llama **B28** cuando va de Portal Américas a Portal Norte y
+  **F28** cuando va hacia Portal Américas.
+- Se sigue modelando como **ruta circular** (ida + vuelta = un ciclo), por eso se conserva la
+  `ColaCircular` de la Fase 1.
+
 ### 3.2 Decisiones del grupo
 1. **Sistema:** TransMilenio, por los problemas logísticos que el equipo conoce como residentes.
 2. **Ruta piloto:** Portal Américas ↔ Portal Norte. Conecta el occidente con el norte, y hay
@@ -63,7 +68,9 @@ Escalar el simulador a **una sola ruta de TransMilenio: Portal Américas ↔ Por
 - **Fuera de alcance (por ahora):** varias troncales, transbordos, grafos, rutas de alimentación.
 
 ### 3.4 Estructuras nuevas (implementadas por el equipo)
-Propuesta, **pendiente de confirmar** con el equipo:
+Estado al 27-nov: **montículo (mínimos y máximos), AVL y árbol de segmentos ya implementados**
+como TDA (etapa 1). Su **uso está en discusión** (etapa 2); la tabla es solo la propuesta inicial
+y la decide el equipo:
 
 | Estructura | Necesidad que cubre | Prioridad |
 |---|---|---|
@@ -74,31 +81,40 @@ Propuesta, **pendiente de confirmar** con el equipo:
 
 Grafos: no se han visto en clase; se dejan para una fase posterior (transbordos y camino mínimo).
 
-## 4. Arquitectura objetivo (4 capas)
+## 4. Arquitectura objetivo (3 capas, nomenclatura de Nicolás)
 
 ```
-estructuras/   Capa 1: nodo, pila, cola, heap, AVL, árbol de segmentos... (genéricas)
-simulador/     Capa 2: Pasajero, Estacion, Bus, Simulador (sin web, sin dibujo)
-api/           Capa 3: FastAPI. Solo traduce peticiones a llamadas del Simulador
-web/           Capa 4: index.html, css/, js/ (mapa, animación, panel de control)
-datos/         JSON de la ruta (estaciones, coordenadas, sentido)
-tests/         pytest para capas 1 y 2 (y pruebas simples de la API)
-docs/          Documentación en Markdown
-legacy/        app.py de Tkinter (se conserva hasta que la web funcione, luego se retira)
+CAPA 1 — Núcleo abstracto (Python puro, sin web)
+  estructuras/   nodo, pila, cola, arreglo, montículo, AVL, árbol de segmentos... (genéricas)
+  simulador/     entidades del dominio (Pasajero, Parada/Estación, Bus) y el Simulador
+                 -> archivo clave: simulador/simulador.py
+CAPA 2 — API (api/)
+  FastAPI. "Puertas" GET y POST (no es un CRUD) que traducen peticiones a llamadas del Simulador
+CAPA 3 — Interfaz web (web/)
+  index.html, css/, js/: mapa de la ciudad, buses animados, panel de control
+
+datos/    JSON de la ruta (estaciones, coordenadas, sentido)
+tests/    pytest para las capas 1 y 2 (Playwright por evaluar para la capa 3)
+docs/     Documentación en Markdown
+legacy/   app.py de Tkinter (Fase 1, se conserva sin editar)
 ```
+
+Dentro de la capa 1 se mantiene la separación: `estructuras/` no sabe de buses ni pasajeros, y
+`simulador/` las usa. (Documentos anteriores hablaban de "4 capas": es la misma arquitectura,
+contando `estructuras/` y `simulador/` por separado.)
 
 Reglas:
 1. **Cada capa solo conoce la de abajo.**
 2. **La API no tiene lógica de negocio.** Cada endpoint llama a un método del `Simulador` y
    devuelve su resultado. Si aparece un `if` de negocio en `api/`, está en el lugar equivocado.
 3. **Un único `Simulador` en memoria** en el servidor.
-4. **El navegador manda el reloj:** el front llama a `POST /avanzar` periódicamente.
+4. **El navegador manda el reloj:** el front llama a `POST /api/avanzar` periódicamente.
 5. **La animación es del front:** JS interpola la posición del bus entre el estado anterior y el
    nuevo (equivale al `animar_cuadro()` actual). No se usan WebSockets.
 6. **Un solo comando para ejecutar:** FastAPI sirve también la carpeta `web/` (evita CORS y dos servidores).
-7. Capa 1 sin dependencias de dominio (no sabe de buses ni pasajeros).
+7. `estructuras/` sin dependencias de dominio (no sabe de buses ni pasajeros).
 
-### Endpoints previstos (nombres tentativos, en español)
+### Endpoints (todos con prefijo `/api/`; ya hechos: estado, reporte, avanzar, pausar, reanudar, agregar-bus, deshacer)
 | Método y ruta | Llama a |
 |---|---|
 | `GET /estado` | `Simulador.estado()` |
@@ -173,23 +189,27 @@ dice "duplica" donde el código usa factor áureo; docstring de `bajar_en` dice 
 `manual_usuario.md` menciona 20 % de prioritarios y el código usa 50 %; `.gitignore` tiene una línea
 `.venv/.DS_Store` que probablemente son dos.
 
-## 9. Cronograma (17 al 28 de noviembre; la entrega pasó del 26 al 28 el 24-nov)
+## 9. Plan de trabajo: 5 etapas (definido por Nicolás el 27-nov)
 
-| Bloque | Qué | Quién guía |
-|---|---|---|
-| 1 | Entorno y esqueleto: estructura de carpetas, dependencias, "hola mundo" de API + página que la llame | Asistente |
-| 2 | Datos de la ruta en `datos/` y `Simulador` adaptado a estaciones reales | Equipo (revisión del asistente) |
-| 3 | **Estructuras núcleo** (segmentos, heap, AVL) con pruebas | **Equipo** |
-| 4 | API completa y mapa web con buses animados | Asistente |
-| 5 | Integrar las estructuras en el simulador y en el panel | Conjunto |
-| 6 | Documentación, registro de IA, video, ensayo de sustentación | Equipo |
+Se agota cada etapa antes de pasar a la siguiente. En **cada** etapa se hacen las pruebas con
+pytest de las capas 1 y 2; para la capa 3 se evalúa Playwright.
 
-**Orden de recortes si falta tiempo:** pulido visual y gráficas → B+ → una de las estructuras
-núcleo → funciones extra de la interfaz. Nunca se sustituye una estructura por una librería.
+| Etapa | Qué | Capa | Quién | Estado |
+|---|---|---|---|---|
+| 1 | Implementar de cero, como TDA y con lo visto en clase, cada estructura nueva (montículo, AVL, árbol de segmentos) | 1 | Equipo (IA revisa y prueba) | Lista; ajustes menores si una decisión posterior lo pide |
+| 2 | Definir el uso y la aplicación de cada estructura nueva, con justificación, **sin quitar** ninguna estructura lineal de la Fase 1 | 1 | Equipo; la IA opina cuando se le pida | **En curso** |
+| 3 | Implementar ese uso en `simulador/`; el cambio principal se refleja en `simulador.py` | 1 | Equipo / Nicolás en `simulador.py` (IA guía y revisa) | Pendiente |
+| 4 | Configurar la API: todos los GET y POST del alcance, endpoints y enrutamiento | 2 | Nicolás con guía de la IA | Parcial (A1 y A2 hechos con la Fase 1 del simulador) |
+| 5 | Interfaz web profesional (HTML, CSS, JS), ajustando el alcance a lo que el equipo imagina | 3 | IA en gran parte, con el equipo | Pendiente (solo esqueleto) |
+
+El cronograma anterior por "Bloques" (17–28 nov) queda como historia en `plan_preparacion.md`.
+
+**Orden de recortes si falta tiempo:** pulido visual y gráficas → funciones extra de la interfaz.
+Nunca se sustituye una estructura por una librería.
 
 ## 10. Preguntas abiertas
 
-1. ¿Cuáles estructuras núcleo se confirman? (propuesta: segmentos, heap, AVL)
+1. ¿Para qué se usa cada estructura nueva y con qué justificación? (etapa 2)
 2. ¿Existe servicio directo Portal Américas–Portal Norte y cuáles son sus estaciones?
 3. ¿Qué sistema operativo usa cada integrante? (afecta los comandos del paso a paso)
 4. ¿Se conserva `app.py` en `legacy/` o se elimina al final?
