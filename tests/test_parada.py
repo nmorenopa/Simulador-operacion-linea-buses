@@ -40,9 +40,13 @@ def test_abordar_sube_prioritarios_primero_y_respeta_cupo():
     p.recibir(pas(2, PRIORIDAD_NORMAL))
     p.recibir(pas(3, PRIORIDAD_ALTA))
     bus = bus_con_capacidad(2, p)
-    assert p.abordar(bus, 5) == 2
+    subieron = p.abordar(bus, 5)
+    assert subieron.tamano() == 2
     abordo = [x.id for x in bus.pasajeros.mostrar()]
     assert abordo == [3, 1]                      # el prioritario y el normal más antiguo
+    # abordar devuelve los MISMOS objetos que van a bordo, en el orden en que subieron
+    assert [x.id for x in subieron.mostrar()] == [3, 1]
+    assert all(a is b for a, b in zip(subieron.mostrar(), bus.pasajeros.mostrar()))
     assert p.esperando() == 1                    # el 2 se queda
     assert p.total_abordados == 2
 
@@ -69,11 +73,11 @@ def test_abordar_registra_minuto_y_espera():
 def test_abordar_con_bus_lleno_o_fila_vacia_no_sube_a_nadie():
     p = Parada(0, "Centro", 0.3)
     bus = bus_con_capacidad(1, p)
-    assert p.abordar(bus, 0) == 0                # fila vacía
+    assert p.abordar(bus, 0).tamano() == 0       # fila vacía
     p.recibir(pas(1, PRIORIDAD_NORMAL))
     p.recibir(pas(2, PRIORIDAD_NORMAL))
     bus.subir(pas(9, PRIORIDAD_NORMAL))          # bus lleno
-    assert p.abordar(bus, 0) == 0
+    assert p.abordar(bus, 0).tamano() == 0       # bus lleno
     assert p.esperando() == 2
 
 

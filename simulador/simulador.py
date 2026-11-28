@@ -5,6 +5,7 @@ from random import Random
 from estructuras.pila import Pila
 from estructuras.arreglo_dinamico import ArregloDinamico
 from estructuras.cola_circular import ColaCircular
+from estructuras.arbol_balanceado import ArbolAVL
 
 # Entidades del dominio
 from simulador.bus import Bus
@@ -16,6 +17,10 @@ from simulador.pasajero import Pasajero, PRIORIDAD_ALTA, PRIORIDAD_NORMAL
 ACCION_AGREGAR_BUS = "agregar_bus"
 ACCION_PAUSAR = "pausar"
 ACCION_REANUDAR = "reanudar"
+
+# Tope para los límites del rango del AVL: infinito es mayor que cualquier
+# espera o id, así (TOPE, TOPE) queda después de toda clave (espera, id).
+TOPE = float("inf")
 
 
 class Simulador:
@@ -41,6 +46,10 @@ class Simulador:
         intentos_llegada: cuántas veces por minuto se sortea, en cada parada, si llega
             un pasajero (cada sorteo con probabilidad tasa_llegada). Con 1 llega como
             máximo un pasajero por parada y minuto; con K, como máximo K.
+        segundos_por_tick: cuántos segundos simulados dura un tick. Hoy vale 60
+            (1 tick = 1 minuto); cambiará cuando existan los tiempos reales de los tramos.
+        esperas: ArbolAVL, índice de los pasajeros que ya abordaron. Clave
+            (tiempo_espera en ticks, id_pasajero) -> referencia al Pasajero.
         _aleatorio: generador Random (con semilla, para poder repetir una simulación).
         _proximo_id: id que recibirá el próximo pasajero.
     """
@@ -54,7 +63,8 @@ class Simulador:
       tasa_llegada: float,
       probabilidad_prioritario: float,
       semilla = None,
-      intentos_llegada: int = 1
+      intentos_llegada: int = 1,
+      segundos_por_tick: int = 60
     ):
         """
         Crea una simulación lista para arrancar en el minuto 0. O(P + B*P),
@@ -62,6 +72,7 @@ class Simulador:
 
         intentos_llegada es opcional y va al final para no cambiar las llamadas
         que ya existen; con el valor por defecto (1) la simulación es igual que antes.
+        Lo mismo con segundos_por_tick (por defecto 60, es decir, 1 tick = 1 minuto).
 
         Lanza ValueError si algún parámetro no tiene sentido.
         """
@@ -78,6 +89,8 @@ class Simulador:
             raise ValueError("La probabilidad de prioritario debe ser un valor entre 0 y 1")
         if not isinstance(intentos_llegada, int) or intentos_llegada < 1:
             raise ValueError("Los intentos de llegada deben ser un entero mayor o igual a 1")
+        if not isinstance(segundos_por_tick, int) or not(segundos_por_tick > 0):
+            raise ValueError("Los segundos por tick deben ser un entero mayor que 0")
 
         #Asignacion de valores iniciales de los atributos
         self.minuto = 0
@@ -93,6 +106,8 @@ class Simulador:
         self.intentos_llegada = intentos_llegada
         self._aleatorio = Random(semilla)
         self._proximo_id = 0
+        self.segundos_por_tick = segundos_por_tick
+        self.esperas = ArbolAVL()
         
         #Se crean las paradas
         for i in range(numero_paradas):
@@ -136,7 +151,15 @@ class Simulador:
             prioritarios_antes = parada.prioritarios_esperando
             cupos_antes = bus.cupos_libres()
 
-            subieron = parada.abordar(bus, self.minuto)
+            abordaron = parada.abordar(bus, self.minuto)
+
+            # Índice de esperas (AVL): cada pasajero que acaba de subir entra
+            # con su clave (espera, id). Se guarda la referencia al Pasajero,
+            # no una copia. O(m log n): m = los que subieron, n = los del árbol.
+            for j in range(abordaron.tamano()):
+                pasajero = abordaron.posicion(j)
+                self.esperas.insertar(self._clave_espera(pasajero), pasajero)
+
             bus.avanzar()
 
             self.eventos.agregaralfinal({
@@ -146,7 +169,7 @@ class Simulador:
                 "esperando_antes": esperando_antes,
                 "prioritarios_antes": prioritarios_antes,
                 "cupos_antes": cupos_antes,
-                "subieron": subieron,
+                "subieron": abordaron.tamano(),
                 "prioritarios_subieron": prioritarios_antes - parada.prioritarios_esperando,
                 "esperando_despues": parada.esperando(),
                 "a_bordo": bus.cantidad_pasajeros(),
@@ -209,6 +232,99 @@ class Simulador:
 
         self.historial.desapilar()
         return mensaje
+    
+    def consultar_esperas(self, minimo: int, limite: int)-> dict:
+        """
+        ¿Quiénes esperaron `minimo` minutos o más, y dónde? Consulta el índice
+        de esperas (AVL) de los pasajeros que ya abordaron.
+
+        Parámetros:
+            minimo: umbral en MINUTOS (entero >= 0). Se pasa a ticks por dentro.
+            limite: cuántos registros individuales devolver como máximo (entero >= 0);
+                evita mandar miles de registros a la web. El resumen sí cuenta a todos.
+
+        Devuelve un diccionario con:
+            minimo_minutos: el umbral pedido.
+            total: cuántos pasajeros cumplen el umbral.
+            resumen: una fila por parada, con cuántos prioritarios y normales
+                cumplen el umbral y la peor espera allí (en minutos, o None).
+            registros: hasta `limite` pasajeros, las PEORES esperas primero.
+
+        Lanza ValueError si minimo o limite no son enteros >= 0 (True/False no cuentan).
+
+        Complejidad: O(log n + k + P), con n = pasajeros en el árbol,
+        k = los que cumplen el umbral (el resumen los recorre a todos) y P = paradas.
+        """
+
+        # Validación de datos (bool es un subtipo de int en Python: se excluye aparte)
+        if isinstance(minimo, bool) or not isinstance(minimo, int) or minimo < 0:
+            raise ValueError("El mínimo debe ser un entero mayor o igual que cero")
+        if isinstance(limite, bool) or not isinstance(limite, int) or limite < 0:
+            raise ValueError("El límite debe ser un entero mayor o igual que cero")
+
+        # 1) El AVL entrega, en orden ASCENDENTE, todos los (clave, pasajero)
+        #    con espera >= el umbral en ticks. O(log n + k).
+        desde, hasta = self._limites_espera(self._minutos_a_ticks(minimo))
+        candidatos = self.esperas.rango(desde, hasta)
+
+        # 2) Acumuladores del resumen, indexados por id de parada
+        #    (el id de cada parada es su posición, así que se llega en O(1)). O(P).
+        prioritarios = ArregloDinamico()
+        normales = ArregloDinamico()
+        peor_espera = ArregloDinamico()
+        for _ in range(self.paradas.tamano()):
+            prioritarios.agregaralfinal(0)
+            normales.agregaralfinal(0)
+            peor_espera.agregaralfinal(None)
+
+        # 3) Se recorre de atrás hacia adelante: así salen primero las PEORES
+        #    esperas. Los primeros `limite` van a registros; todos van al resumen. O(k).
+        registros = ArregloDinamico()
+        for i in range(candidatos.tamano() - 1, -1, -1):
+            clave, pasajero = candidatos.posicion(i)
+            espera_ticks = clave[0]
+            origen = pasajero.origen
+
+            if pasajero.es_prioritario():
+                prioritarios.cambiarposicion(origen, prioritarios.posicion(origen) + 1)
+            else:
+                normales.cambiarposicion(origen, normales.posicion(origen) + 1)
+
+            # Como vamos de mayor a menor espera, el primero que aparece en
+            # cada parada es su peor espera
+            if peor_espera.posicion(origen) is None:
+                peor_espera.cambiarposicion(origen, self._ticks_a_minutos(espera_ticks))
+
+            if registros.tamano() < limite:
+                registros.agregaralfinal({
+                    "id": pasajero.id,
+                    "origen": origen,
+                    "destino": pasajero.destino,
+                    "prioritario": pasajero.es_prioritario(),
+                    "espera_minutos": self._ticks_a_minutos(espera_ticks),
+                })
+
+        # 4) Se arma el resumen. Las listas y diccionarios de Python solo se
+        #    usan aquí, para entregar los datos a la interfaz (como en estado()).
+        resumen = []
+        for id_parada in range(self.paradas.tamano()):
+            p = prioritarios.posicion(id_parada)
+            n = normales.posicion(id_parada)
+            resumen.append({
+                "parada": id_parada,
+                "nombre": self.paradas.posicion(id_parada).nombre,
+                "prioritarios": p,
+                "normales": n,
+                "total": p + n,
+                "peor_espera_minutos": peor_espera.posicion(id_parada),
+            })
+
+        return {
+            "minimo_minutos": minimo,
+            "total": candidatos.tamano(),
+            "resumen": resumen,
+            "registros": registros.mostrar(),
+        }
 
     
     # --------------------------
@@ -318,7 +434,7 @@ class Simulador:
         
         return Bus(id, ruta_bus, self.capacidad_bus)
     
-    def _generar_llegadas(self):
+    def _generar_llegadas(self)-> None:
         """
         En cada parada se hacen intentos_llegada sorteos; en cada uno, con
         probabilidad tasa_llegada, llega un pasajero nuevo con destino distinto
@@ -355,14 +471,14 @@ class Simulador:
             total += self.paradas.posicion(i).esperando()
         return total
     
-    def _ocupacion_actual(self):
+    def _ocupacion_actual(self)-> float:
         """Ocupación promedio de la flota en este momento (0 a 1). O(B)."""
         suma = 0
         for i in range(self.buses.tamano()):
             suma += self.buses.posicion(i).ocupacion()
         return suma / self.buses.tamano()
     
-    def _registrar_estadisticas(self):
+    def _registrar_estadisticas(self) -> None:
         """Guarda una muestra por tick para las gráficas. O(P + B)."""
         self.serie_esperando.agregaralfinal(self._total_esperando())
         self.serie_ocupacion.agregaralfinal(self._ocupacion_actual())
@@ -375,3 +491,41 @@ class Simulador:
                 id_mas_llena = i
 
         return id_mas_llena
+    
+    def _clave_espera(self, pasajero: Pasajero)-> tuple:
+        """
+        Arma la clave del pasajero en el índice de esperas (AVL): (espera, id). O(1).
+
+        La espera sola se repite mucho (muchos esperan 2 o 3 ticks) y el AVL
+        reemplaza el valor cuando una clave se repite; el id, que es único,
+        desempata y evita perder pasajeros. Python compara las tuplas posición
+        por posición: primero la espera y, si empatan, el id.
+        Solo tiene sentido para pasajeros que ya abordaron (si no, la espera es None).
+        """
+        return (pasajero.tiempo_espera(), pasajero.id)
+    
+    def _minutos_a_ticks(self, minutos: int)->int:
+        """
+        Cuántos ticks hay que esperar, como mínimo, para completar `minutos`. O(1).
+
+        Es el techo de minutos*60 / segundos_por_tick, calculado solo con
+        enteros (sumar divisor - 1 antes de dividir redondea hacia arriba).
+        Ejemplo: con 45 s por tick, 1 minuto = 60 s pide 2 ticks (90 s),
+        porque 1 tick (45 s) se queda corto. La equivalencia es exacta.
+        """
+        return (minutos*60 + self.segundos_por_tick - 1) // self.segundos_por_tick
+
+    def _ticks_a_minutos(self, ticks: int)-> float:
+        """Pasa ticks a minutos para mostrar al usuario (puede tener decimales). O(1)."""
+        return ticks * self.segundos_por_tick / 60
+
+    def _limites_espera(self, minimo_ticks: int)-> tuple:
+        """
+        Límites del rango del AVL para "esperó minimo_ticks o más". O(1).
+
+        Desde (minimo_ticks, -inf): queda antes que cualquier (minimo_ticks, id).
+        Hasta (inf, inf): queda después de cualquier clave (espera, id).
+        Python compara int con float sin problema y las tuplas posición por posición.
+        """
+        return ((minimo_ticks, -TOPE), (TOPE, TOPE))
+

@@ -379,3 +379,248 @@ def test_el_reloj_avanza_un_minuto_por_tick():
     for esperado in range(1, 6):
         sim.avanzar_tick()
         assert sim.minuto == esperado
+
+# ---------------------------- índice de esperas (AVL) ----------------------------
+# Etapa 3, bloque A (piezas A1 y A2): cada pasajero que aborda entra al AVL
+# del Simulador con la clave (espera en ticks, id).
+
+def simular(ticks, **kwargs):
+    """Crea un simulador con llegadas abundantes y avanza `ticks` veces."""
+    datos = dict(paradas=6, buses=2, capacidad=5, tasa=0.8, prob=0.3, semilla=7)
+    datos.update(kwargs)
+    sim = crear(**datos)
+    for _ in range(ticks):
+        sim.avanzar_tick()
+    return sim
+
+
+def test_el_indice_de_esperas_arranca_vacio():
+    sim = crear()
+    assert sim.esperas.esta_vacio() and sim.esperas.tamano() == 0
+
+
+def test_segundos_por_tick_por_defecto_es_60():
+    assert crear().segundos_por_tick == 60
+    assert Simulador(4, 2, 10, 0.5, 0.2, 1, segundos_por_tick=45).segundos_por_tick == 45
+
+
+@pytest.mark.parametrize("spt", [0, -30, 2.5, "60", None])
+def test_segundos_por_tick_invalidos_lanzan_error(spt):
+    with pytest.raises(ValueError):
+        Simulador(4, 2, 10, 0.5, 0.2, 1, segundos_por_tick=spt)
+
+
+@pytest.mark.parametrize("ticks", [1, 10, 60])
+def test_el_indice_tiene_exactamente_a_los_que_abordaron(ticks):
+    sim = simular(ticks)
+    assert sim.esperas.tamano() == sim.reporte()["pasajeros_abordados"]
+
+
+def test_cada_abordaje_del_tick_entra_al_indice():
+    sim = crear(paradas=6, buses=2, capacidad=5, tasa=0.8, semilla=3)
+    for _ in range(20):
+        antes = sim.esperas.tamano()
+        sim.avanzar_tick()
+        subieron = sum(e["subieron"] for e in sim.eventos.mostrar())
+        assert sim.esperas.tamano() == antes + subieron
+
+
+def test_el_indice_queda_balanceado_y_ordenado():
+    sim = simular(80)
+    assert sim.esperas.verificar_balance()
+    claves = [clave for clave, _ in sim.esperas.en_orden().mostrar()]
+    assert claves == sorted(claves)
+    assert len(set(claves)) == len(claves)       # ninguna clave repetida
+
+
+def test_la_clave_es_espera_e_id_y_el_valor_es_el_mismo_pasajero():
+    sim = simular(40)
+    for (espera, id_pasajero), pasajero in sim.esperas.en_orden().mostrar():
+        assert isinstance(pasajero, Pasajero)
+        assert pasajero.minuto_abordaje is not None        # solo los que abordaron
+        assert espera == pasajero.tiempo_espera() and id_pasajero == pasajero.id
+
+
+def test_el_valor_es_una_referencia_y_no_una_copia():
+    sim = simular(15)
+    a_bordo = [p for i in range(sim.buses.tamano())
+               for p in sim.buses.posicion(i).pasajeros.mostrar()]
+    assert a_bordo, "el escenario debe dejar gente a bordo"
+    for p in a_bordo:
+        assert sim.esperas.buscar((p.tiempo_espera(), p.id)) is p
+
+
+def test_clave_espera_desempata_por_id():
+    sim = crear()
+    a = Pasajero(12, 0, 1, PRIORIDAD_NORMAL, 0)
+    b = Pasajero(40, 0, 1, PRIORIDAD_NORMAL, 0)
+    c = Pasajero(3, 0, 1, PRIORIDAD_NORMAL, 0)
+    a.minuto_abordaje = b.minuto_abordaje = 5      # misma espera: 5
+    c.minuto_abordaje = 6                          # espera 6
+    assert sim._clave_espera(a) == (5, 12)
+    assert sim._clave_espera(a) < sim._clave_espera(b) < sim._clave_espera(c)
+
+
+def test_maximo_del_indice_es_la_peor_espera():
+    sim = simular(80)
+    (peor, _), pasajero = sim.esperas.maximo()
+    esperas = [p.tiempo_espera() for _, p in sim.esperas.en_orden().mostrar()]
+    assert peor == max(esperas) == pasajero.tiempo_espera()
+
+
+def test_el_indice_es_reproducible_con_la_misma_semilla():
+    a, b = simular(50), simular(50)
+    assert [c for c, _ in a.esperas.en_orden().mostrar()] == [c for c, _ in b.esperas.en_orden().mostrar()]
+
+
+def test_en_pausa_el_indice_no_cambia():
+    sim = simular(10)
+    antes = sim.esperas.tamano()
+    sim.pausar()
+    for _ in range(5):
+        sim.avanzar_tick()
+    assert sim.esperas.tamano() == antes
+
+
+def test_el_indice_no_cambia_el_resultado_de_la_simulacion():
+    """Indexar no debe tocar el azar ni el reporte: misma semilla, mismo reporte de antes."""
+    sim = simular(50)
+    assert sim.reporte()["pasajeros_abordados"] == sim.esperas.tamano()
+    suma = sum(p.tiempo_espera() for _, p in sim.esperas.en_orden().mostrar())
+    total = sum(sim.paradas.posicion(i).suma_espera for i in range(sim.paradas.tamano()))
+    assert suma == total
+
+
+# ---------------------------- consultar_esperas (A3 y A4) ----------------------------
+def sim_con_esperas(esperas_ticks, segundos_por_tick=60, prioritarios=()):
+    """
+    Simulador con el AVL armado a mano: un pasajero por cada espera dada (en
+    ticks), todos en la parada 0 salvo los ids pares, que van a la parada 1.
+    Los ids en `prioritarios` tienen prioridad alta.
+    """
+    sim = Simulador(4, 1, 10, 0.5, 0.2, 1, segundos_por_tick=segundos_por_tick)
+    for id_p, espera in enumerate(esperas_ticks):
+        prioridad = PRIORIDAD_ALTA if id_p in prioritarios else PRIORIDAD_NORMAL
+        origen = 1 if id_p % 2 == 0 else 0
+        p = Pasajero(id_p, origen, 3, prioridad, 0)
+        p.minuto_abordaje = espera
+        sim.esperas.insertar(sim._clave_espera(p), p)
+    return sim
+
+
+@pytest.mark.parametrize("spt, minutos, ticks", [
+    (60, 0, 0), (60, 1, 1), (60, 5, 5),
+    (30, 1, 2), (30, 3, 6),
+    (45, 1, 2),       # 1 tick = 45 s no alcanza el minuto; 2 ticks = 90 s sí
+    (45, 3, 4),       # 180 s / 45 = 4 exacto
+    (90, 1, 1), (90, 2, 2),   # 2 min = 120 s -> 2 ticks (180 s); 1 tick (90 s) no alcanza
+])
+def test_minutos_a_ticks_redondea_hacia_arriba(spt, minutos, ticks):
+    sim = Simulador(4, 1, 10, 0.5, 0.2, 1, segundos_por_tick=spt)
+    assert sim._minutos_a_ticks(minutos) == ticks
+
+
+def test_limites_espera_encierran_todas_las_claves_con_espera_suficiente():
+    sim = crear()
+    desde, hasta = sim._limites_espera(3)
+    assert desde < (3, 0) < (3, 10**9) < hasta
+    assert desde < (999, 5) < hasta
+    assert not (desde <= (2, 10**9))           # espera 2 queda fuera
+
+
+def test_con_45_segundos_por_tick_un_minuto_exige_dos_ticks():
+    sim = sim_con_esperas([1, 2], segundos_por_tick=45)
+    r = sim.consultar_esperas(1, 10)
+    assert r["total"] == 1 and r["registros"][0]["id"] == 1
+    assert r["registros"][0]["espera_minutos"] == 1.5
+
+
+def test_frontera_con_numero_impar_de_ticks():
+    # 30 s por tick: 3 ticks = 1,5 min. Entra con N = 1 y no con N = 2
+    sim = sim_con_esperas([3], segundos_por_tick=30)
+    assert sim.consultar_esperas(1, 10)["total"] == 1
+    assert sim.consultar_esperas(2, 10)["total"] == 0
+
+
+def test_consultar_esperas_igual_que_un_filtro_lineal():
+    sim = simular(120)
+    todos = [p for _, p in sim.esperas.en_orden().mostrar()]
+    for minimo in (0, 1, 2, 5, 10, 1000):
+        r = sim.consultar_esperas(minimo, 10**6)
+        esperado = sorted((p for p in todos if p.tiempo_espera() >= minimo),
+                          key=lambda p: (p.tiempo_espera(), p.id), reverse=True)
+        assert r["total"] == len(esperado)
+        assert [x["id"] for x in r["registros"]] == [p.id for p in esperado]
+
+
+def test_minimo_cero_devuelve_a_todos():
+    sim = simular(40)
+    assert sim.consultar_esperas(0, 0)["total"] == sim.esperas.tamano()
+
+
+def test_registros_peores_primero_y_recortados_al_limite():
+    sim = sim_con_esperas([4, 9, 1, 9, 6])
+    r = sim.consultar_esperas(0, 3)
+    assert [(x["espera_minutos"], x["id"]) for x in r["registros"]] == [(9, 3), (9, 1), (6, 4)]
+    assert r["total"] == 5                    # el total no se recorta
+
+
+def test_limite_cero_solo_devuelve_el_resumen():
+    sim = sim_con_esperas([4, 9])
+    r = sim.consultar_esperas(0, 0)
+    assert r["registros"] == [] and r["total"] == 2
+    assert sum(f["total"] for f in r["resumen"]) == 2
+
+
+def test_resumen_por_parada_y_prioridad():
+    # ids 0..4 con esperas 2,8,5,3,7; pares -> parada 1, impares -> parada 0
+    # prioritarios: 1 y 3 (los dos de la parada 0); normales: 0, 2 y 4
+    sim = sim_con_esperas([2, 8, 5, 3, 7], prioritarios={1, 3})
+    r = sim.consultar_esperas(3, 10)          # cumplen: id1(8), id2(5), id3(3), id4(7)
+    filas = {f["parada"]: f for f in r["resumen"]}
+    assert len(r["resumen"]) == sim.paradas.tamano()
+    assert (filas[0]["prioritarios"], filas[0]["normales"], filas[0]["peor_espera_minutos"]) == (2, 0, 8)
+    assert (filas[1]["prioritarios"], filas[1]["normales"], filas[1]["peor_espera_minutos"]) == (0, 2, 7)
+    assert filas[2]["total"] == 0 and filas[2]["peor_espera_minutos"] is None
+    assert filas[0]["nombre"] == sim.paradas.posicion(0).nombre
+
+
+def test_resumen_suma_lo_mismo_que_el_total():
+    sim = simular(100)
+    for minimo in (0, 2, 6):
+        r = sim.consultar_esperas(minimo, 5)
+        assert sum(f["total"] for f in r["resumen"]) == r["total"]
+        assert all(f["total"] == f["prioritarios"] + f["normales"] for f in r["resumen"])
+
+
+def test_registros_traen_los_datos_del_pasajero():
+    sim = sim_con_esperas([6], prioritarios={0})
+    (x,) = sim.consultar_esperas(0, 10)["registros"]
+    assert x == {"id": 0, "origen": 1, "destino": 3, "prioritario": True, "espera_minutos": 6}
+
+
+def test_consultar_esperas_con_arbol_vacio():
+    r = crear().consultar_esperas(0, 10)
+    assert r["total"] == 0 and r["registros"] == [] and r["minimo_minutos"] == 0
+    assert all(f["total"] == 0 for f in r["resumen"])
+
+
+def test_consultar_esperas_no_cambia_el_arbol():
+    sim = simular(50)
+    antes = sim.esperas.en_orden().mostrar()
+    sim.consultar_esperas(2, 3)
+    assert sim.esperas.en_orden().mostrar() == antes and sim.esperas.verificar_balance()
+
+
+def test_consultar_esperas_es_serializable_a_json():
+    import json
+    json.dumps(simular(30).consultar_esperas(1, 5))   # la API lo enviará tal cual
+
+
+@pytest.mark.parametrize("minimo, limite", [
+    (-1, 10), (1.5, 10), ("3", 10), (None, 10), (True, 10),
+    (1, -1), (1, 2.0), (1, "5"), (1, False),
+])
+def test_consultar_esperas_con_parametros_invalidos_lanza_error(minimo, limite):
+    with pytest.raises(ValueError):
+        crear().consultar_esperas(minimo, limite)

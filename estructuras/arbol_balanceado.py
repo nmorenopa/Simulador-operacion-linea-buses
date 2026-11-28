@@ -1,4 +1,5 @@
 from typing import Any
+from estructuras.arreglo_dinamico import ArregloDinamico
 
 
 class NodoAVL:
@@ -240,7 +241,7 @@ class ArbolAVL:
     # CONSULTAS POR ORDEN
     # --------------------------------------------------
 
-    def _rango(self, nodo: NodoAVL | None, desde: Any, hasta: Any, resultado: list) -> None:
+    def _rango(self, nodo: NodoAVL | None, desde: Any, hasta: Any, resultado: ArregloDinamico) -> None:
         """
         Recorrido en orden que se salta las ramas que no pueden tener claves
         dentro de [desde, hasta]: si la clave del nodo ya es menor o igual a
@@ -254,20 +255,21 @@ class ArbolAVL:
             self._rango(nodo.izquierdo, desde, hasta, resultado)
 
         if desde <= nodo.clave <= hasta:
-            resultado.append((nodo.clave, nodo.valor))
+            resultado.agregaralfinal((nodo.clave, nodo.valor))
 
         if nodo.clave < hasta:
             self._rango(nodo.derecho, desde, hasta, resultado)
 
-    def rango(self, desde: Any, hasta: Any) -> list:
+    def rango(self, desde: Any, hasta: Any) -> ArregloDinamico:
         """
-        Devuelve, ordenadas por clave, las parejas (clave, valor) con
-        desde <= clave <= hasta (incluye los dos extremos).
-        Si desde > hasta, devuelve una lista vacía.
+        Devuelve un ArregloDinamico con las parejas (clave, valor) con
+        desde <= clave <= hasta (incluye los dos extremos), ordenadas por clave.
+        Si desde > hasta, devuelve un ArregloDinamico vacío.
         Ejemplo: estaciones entre el metro 2000 y el 5000.
-        Complejidad: O(log n + k), donde k es la cantidad de claves halladas.
+        Complejidad: O(log n + k), donde k es la cantidad de claves halladas
+        (cada agregaralfinal es O(1) amortizado).
         """
-        resultado = []
+        resultado = ArregloDinamico()
         self._rango(self.raiz, desde, hasta, resultado)
         return resultado
 
@@ -342,25 +344,26 @@ class ArbolAVL:
     # RECORRIDO EN ORDEN
     # --------------------------------------------------
 
-    def _en_orden(self, nodo: NodoAVL | None, resultado: list) -> None:
+    def _en_orden(self, nodo: NodoAVL | None, resultado: ArregloDinamico) -> None:
         """
-        Recorre el árbol en orden ascendente (izquierda, nodo, derecha).
+        Recorre el árbol en orden ascendente (izquierda, nodo, derecha)
+        y va agregando cada pareja al final de 'resultado'.
         Complejidad: O(n).
         """
         if nodo is None:
             return
 
         self._en_orden(nodo.izquierdo, resultado)
-        resultado.append((nodo.clave, nodo.valor))
+        resultado.agregaralfinal((nodo.clave, nodo.valor))
         self._en_orden(nodo.derecho, resultado)
 
-    def en_orden(self) -> list:
+    def en_orden(self) -> ArregloDinamico:
         """
-        Devuelve todas las parejas (clave, valor) ordenadas por clave.
-        Si el árbol está vacío, devuelve una lista vacía.
-        Complejidad: O(n).
+        Devuelve un ArregloDinamico con todas las parejas (clave, valor)
+        ordenadas por clave. Si el árbol está vacío, devuelve un ArregloDinamico vacío.
+        Complejidad: O(n) (cada agregaralfinal es O(1) amortizado).
         """
-        resultado = []
+        resultado = ArregloDinamico()
         self._en_orden(self.raiz, resultado)
 
         return resultado

@@ -1,4 +1,5 @@
 from estructuras.cola_prioridad import ColaPrioridad
+from estructuras.arreglo_dinamico import ArregloDinamico
 from simulador.pasajero import Pasajero, NIVELES_PRIORIDAD
 from simulador.bus import Bus
 
@@ -28,7 +29,7 @@ class Parada:
         (la interfaz lo usa para dibujar la fila sin recorrerla).
     """
 
-    def __init__(self, id: int, nombre: str, tasa_llegada: float):
+    def __init__(self, id: int, nombre: str, tasa_llegada: float)->None:
         """
         Crea una parada sin pasajeros. O(1).
         Lanza ValueError si la tasa de llegada no está entre 0 y 1.
@@ -46,7 +47,7 @@ class Parada:
         self.suma_espera = 0
         self.prioritarios_esperando = 0
 
-    def recibir(self, pasajero: Pasajero):
+    def recibir(self, pasajero: Pasajero)-> None:
         """Pone al pasajero en la fila según su prioridad (al final de su nivel) y suma a los contadores de llegados y prioritarios. O(1)."""
         self.fila.encolar(pasajero, pasajero.prioridad)
 
@@ -55,11 +56,11 @@ class Parada:
 
         self.total_llegados += 1
 
-    def esperando(self):
+    def esperando(self)-> int:
         """Devuelve cuántos pasajeros hay en la fila. O(1)."""
         return self.fila.tamano()
 
-    def abordar(self, bus: Bus, minuto: int):
+    def abordar(self, bus: Bus, minuto: int)-> ArregloDinamico:
         """
         Sube pasajeros al bus mientras tenga cupo: primero los prioritarios y,
         entre iguales, los que llegaron antes. Los que no caben siguen en la fila.
@@ -68,10 +69,13 @@ class Parada:
         basta con desencolar mientras haya cupo (se anota su minuto de abordaje
         y su espera).
 
-        Devuelve cuántos pasajeros subieron. O(m), con m = pasajeros que suben:
-        cada desencolar es O(k) y k (niveles de prioridad) es fijo.
+        Devuelve un ArregloDinamico con los pasajeros que subieron, en el orden
+        en que subieron (el Simulador los usa para llenar el índice de esperas;
+        la Parada no conoce ese índice). O(m), con m = pasajeros que suben:
+        cada desencolar es O(k), k (niveles de prioridad) es fijo, y cada
+        agregaralfinal es O(1) amortizado.
         """
-        subieron = 0
+        subieron = ArregloDinamico()
         while bus.cupos_libres() > 0 and not self.fila.esta_vacio():
             pasajero = self.fila.desencolar()
             pasajero.minuto_abordaje = minuto
@@ -79,7 +83,6 @@ class Parada:
             self.suma_espera += pasajero.tiempo_espera()
             if pasajero.es_prioritario():
                 self.prioritarios_esperando -= 1
-            subieron += 1
-
-        self.total_abordados += subieron
+            subieron.agregaralfinal(pasajero)
+        self.total_abordados += subieron.tamano()
         return subieron

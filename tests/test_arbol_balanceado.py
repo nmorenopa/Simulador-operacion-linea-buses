@@ -51,7 +51,7 @@ def contar_nodos(nodo):
 
 def claves_en_orden(arbol):
     """Solo las claves del recorrido en orden."""
-    return [clave for clave, _ in arbol.en_orden()]
+    return [clave for clave, _ in arbol.en_orden().mostrar()]
 
 
 def es_avl_valido(arbol):
@@ -90,8 +90,8 @@ def test_buscar_en_vacio_devuelve_none():
 
 
 def test_en_orden_de_vacio_es_lista_vacia():
-    # Así 'for clave, valor in arbol.en_orden()' funciona aunque no haya nada
-    assert ArbolAVL().en_orden() == []
+    # Con el árbol vacío devuelve un ArregloDinamico vacío (su copia en lista es [])
+    assert ArbolAVL().en_orden().mostrar() == []
 
 
 def test_contiene_en_vacio_es_false():
@@ -204,14 +204,14 @@ def test_guarda_cualquier_objeto_como_valor():
 # ---------------------------------------------------------------
 def test_en_orden_devuelve_parejas_ordenadas_por_clave():
     arbol = arbol_con([40, 10, 30, 20, 50])
-    assert arbol.en_orden() == [(10, "10"), (20, "20"), (30, "30"),
+    assert arbol.en_orden().mostrar() == [(10, "10"), (20, "20"), (30, "30"),
                                 (40, "40"), (50, "50")]
 
 
 def test_en_orden_refleja_el_valor_actualizado():
     arbol = arbol_con([2, 1, 3])
     arbol.insertar(2, "nuevo")
-    assert arbol.en_orden() == [(1, "1"), (2, "nuevo"), (3, "3")]
+    assert arbol.en_orden().mostrar() == [(1, "1"), (2, "nuevo"), (3, "3")]
 
 
 # ---------------------------------------------------------------
@@ -381,46 +381,46 @@ def test_verificar_balance_detecta_una_altura_mal_guardada():
 # rango(desde, hasta): claves entre dos valores, ambos incluidos
 # ---------------------------------------------------------------
 def test_rango_en_vacio_es_lista_vacia():
-    assert ArbolAVL().rango(0, 100) == []
+    assert ArbolAVL().rango(0, 100).mostrar() == []
 
 
 def test_rango_devuelve_parejas_ordenadas():
     arbol = arbol_con([50, 20, 70, 10, 30, 60, 80])
-    assert arbol.rango(25, 65) == [(30, "30"), (50, "50"), (60, "60")]
+    assert arbol.rango(25, 65).mostrar() == [(30, "30"), (50, "50"), (60, "60")]
 
 
 def test_rango_incluye_los_dos_extremos():
     arbol = arbol_con([10, 20, 30, 40])
-    assert [c for c, _ in arbol.rango(20, 40)] == [20, 30, 40]
+    assert [c for c, _ in arbol.rango(20, 40).mostrar()] == [20, 30, 40]
 
 
 def test_rango_de_un_solo_punto():
     arbol = arbol_con([10, 20, 30])
-    assert arbol.rango(20, 20) == [(20, "20")]
-    assert arbol.rango(25, 25) == []
+    assert arbol.rango(20, 20).mostrar() == [(20, "20")]
+    assert arbol.rango(25, 25).mostrar() == []
 
 
 def test_rango_que_cubre_todo_es_igual_a_en_orden():
     arbol = arbol_con([5, 1, 9, 3, 7])
-    assert arbol.rango(-100, 100) == arbol.en_orden()
+    assert arbol.rango(-100, 100).mostrar() == arbol.en_orden().mostrar()
 
 
 @pytest.mark.parametrize("desde, hasta", [(-10, -1), (100, 200), (21, 29)])
 def test_rango_sin_claves_adentro_es_vacio(desde, hasta):
     arbol = arbol_con([10, 20, 30, 40, 50])
-    assert arbol.rango(desde, hasta) == []
+    assert arbol.rango(desde, hasta).mostrar() == []
 
 
 def test_rango_al_reves_es_vacio():
     arbol = arbol_con([10, 20, 30])
-    assert arbol.rango(30, 10) == []
+    assert arbol.rango(30, 10).mostrar() == []
 
 
 def test_rango_no_cambia_el_arbol():
     arbol = arbol_con(range(20))
-    antes = arbol.en_orden()
+    antes = arbol.en_orden().mostrar()
     arbol.rango(5, 12)
-    assert arbol.en_orden() == antes
+    assert arbol.en_orden().mostrar() == antes
     assert arbol.tamano() == 20
 
 
@@ -495,10 +495,10 @@ def test_minimo_y_maximo_devuelven_los_extremos():
 
 def test_minimo_y_maximo_no_cambian_el_arbol():
     arbol = arbol_con([30, 10, 50, 20, 40])
-    antes = arbol.en_orden()
+    antes = arbol.en_orden().mostrar()
     arbol.minimo()
     arbol.maximo()
-    assert arbol.en_orden() == antes
+    assert arbol.en_orden().mostrar() == antes
     assert arbol.tamano() == 5
 
 
@@ -529,7 +529,7 @@ def test_al_azar_igual_que_un_diccionario(semilla):
         referencia[clave] = valor
         assert es_avl_valido(arbol)
     assert arbol.tamano() == len(referencia)
-    assert arbol.en_orden() == sorted(referencia.items())
+    assert arbol.en_orden().mostrar() == sorted(referencia.items())
     for clave in range(-5, 90):
         assert arbol.buscar(clave) == referencia.get(clave)
         assert arbol.contiene(clave) == (clave in referencia)
@@ -549,7 +549,7 @@ def test_al_azar_igual_que_un_diccionario(semilla):
     for _ in range(30):
         desde, hasta = azar.randint(-5, 90), azar.randint(-5, 90)
         esperado = sorted((k, v) for k, v in referencia.items() if desde <= k <= hasta)
-        assert arbol.rango(desde, hasta) == esperado
+        assert arbol.rango(desde, hasta).mostrar() == esperado
 
 
 # ---------------------------------------------------------------
@@ -570,7 +570,7 @@ def test_indice_de_estaciones_queda_ordenado_por_distancia():
     arbol = ArbolAVL()
     for metros, nombre in ESTACIONES_EJEMPLO:
         arbol.insertar(metros, nombre)
-    nombres = [nombre for _, nombre in arbol.en_orden()]
+    nombres = [nombre for _, nombre in arbol.en_orden().mostrar()]
     assert nombres == ["Portal Américas", "Estación A", "Estación B",
                        "Estación C", "Estación D", "Portal Norte"]
     assert arbol.buscar(2700) == "Estación C"
@@ -583,7 +583,7 @@ def test_indice_estaciones_entre_dos_kilometros():
     for metros, nombre in ESTACIONES_EJEMPLO:
         arbol.insertar(metros, nombre)
     # Entre el km 1 y el km 3
-    entre = [nombre for _, nombre in arbol.rango(1000, 3000)]
+    entre = [nombre for _, nombre in arbol.rango(1000, 3000).mostrar()]
     assert entre == ["Estación B", "Estación C"]
 
 
@@ -594,3 +594,26 @@ def test_indice_ultima_estacion_antes_de_un_kilometro():
     assert arbol.piso(3500) == (2700, "Estación C")   # Un bus en el metro 3500
     assert arbol.piso(4100) == (4100, "Estación D")   # Justo en la estación
     assert arbol.piso(0) == (0, "Portal Américas")
+
+
+def test_rango_devuelve_un_arreglo_dinamico_propio():
+    """Principio del proyecto: las estructuras devuelven estructuras propias, no listas."""
+    from estructuras.arreglo_dinamico import ArregloDinamico
+    arbol = ArbolAVL()
+    for c in (10, 20, 30):
+        arbol.insertar(c, str(c))
+    resultado = arbol.rango(10, 20)
+    assert isinstance(resultado, ArregloDinamico)
+    assert resultado.tamano() == 2 and resultado.posicion(0) == (10, "10")
+
+
+def test_en_orden_devuelve_un_arreglo_dinamico_propio():
+    """Principio del proyecto: dentro de la capa 1 se usan estructuras propias, no listas."""
+    from estructuras.arreglo_dinamico import ArregloDinamico
+    arbol = ArbolAVL()
+    assert isinstance(arbol.en_orden(), ArregloDinamico) and arbol.en_orden().esta_vacio()
+    for c in (30, 10, 20):
+        arbol.insertar(c, str(c))
+    resultado = arbol.en_orden()
+    assert isinstance(resultado, ArregloDinamico) and resultado.tamano() == 3
+    assert [resultado.posicion(i)[0] for i in range(3)] == [10, 20, 30]

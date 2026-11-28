@@ -1,0 +1,9 @@
+parametro,valor,unidad,fuente_id,notas
+capacidad_bus,,pasajeros,,
+tipo_vehiculo,,texto,,
+velocidad_comercial,,km/h,,
+buses_en_servicio,,buses,,
+intervalo_de_paso,,minutos,,
+hora_inicio_simulacion,,hh:mm,,
+tope_flota,,buses,,
+probabilidad_prioritario,,0 a 1,,
